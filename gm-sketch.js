@@ -11,6 +11,9 @@
    (everyone back to 5 presses, no runner, no dedications).
    ========================================================= */
 
+const gameMasterPasswordHash = "fc63a788b7769bc10b6c3621375e5fb883bb7e0dd2d4949d65a990d912d6fd81";
+let isAuthenticated = false;
+
 let gameStatus;       // "waiting" | "running" | "finished"
 let pressesRemaining; // { playerName: number }
 let currentRunner;    // playerName | null
@@ -122,35 +125,61 @@ class FireworkParticle {
 
 
 async function setup() {
-  const isAuthenticated = await checkGMPasswordHashed();
+  isAuthenticated = await checkGMPasswordHashed();
   if (!isAuthenticated) {
-    return;
+    return; // Break script execution completely if denied
   }
   createCanvas(windowWidth, windowHeight);
   angleMode(DEGREES); 
   resetGameState();
   connectToSupabase();
 }
-async function checkGMPasswordHashed() {
-  const urlParams = new URLSearchParams(window.location.search);
-  if (await sha256HashHex(urlParams.get("pwd")) === gameMasterPasswordHash) {
-    return true;
-  }
 
-  const entered = prompt("Enter Game Master Password:");
-  if (!entered) {
-    window.location.href = "index.html";
-    return false;
-  }
-  
-  if (await sha256HashHex(entered) !== gameMasterPasswordHash) {
-    alert("Access Denied.");
-    window.location.href = "index.html";
-    return false;
-  }
-  
-  return true;
+async function checkGMPasswordHashed() {
+  return new Promise((resolve) => {
+    // 1. Create dark fullscreen interface blocker
+    let overlay = createDiv();
+    overlay.style('position', 'fixed');
+    overlay.style('top', '0'); overlay.style('left', '0');
+    overlay.style('width', '100vw'); overlay.style('height', '100vh');
+    overlay.style('background', '#222222');
+    overlay.style('display', 'flex'); overlay.style('flex-direction', 'column');
+    overlay.style('justify-content', 'center'); overlay.style('align-items', 'center');
+    overlay.style('z-index', '9999');
+
+    let label = createP("Password:").parent(overlay);
+    label.style('color', '#ffffff'); label.style('font-family', 'monospace'); label.style('font-size', '20px');
+
+    // 2. Create the hidden password field
+    let passInput = createInput("").parent(overlay);
+    passInput.attribute("type", "password"); // ⭐ Hides characters with asterisks/dots!
+    passInput.style('padding', '10px'); passInput.style('font-size', '16px'); passInput.style('text-align', 'center');
+    passInput.elt.focus();
+
+    const submitPass = async () => {
+      const entered = passInput.value().trim();
+      
+      // Compute and run against the global shared hash variable
+      if (await sha256HashHex(entered) === gameMasterPasswordHash) {
+        overlay.remove(); // Burn layout overlay 
+        resolve(true);
+      } else {
+        alert("Access Denied.");
+        window.location.href = "index.html";
+        resolve(false);
+      }
+    };
+
+    // 3. Bind keystroke capture
+    passInput.elt.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        submitPass();
+      }
+    });
+  });
 }
+
 function resetGameState() {
   gameStatus = "waiting";
   currentRunner = null;
@@ -315,6 +344,8 @@ function handleDedicateMessage(payload) {
 // ---- Rendering ----------------------------------------------------------------
 
 function draw() {
+  if(!isAuthenticated) return;
+
   checkWinCondition();
 
   drawBackground();

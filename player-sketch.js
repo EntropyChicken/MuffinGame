@@ -10,7 +10,7 @@
    ========================================================= */
 
 let playerName = "Unknown";
-let pressesRemainingLocal = -Infinity;//MAX_PRESSES;
+let pressesRemainingLocal = -Infinity;
 
 let channel;
 let channelReady = false;
@@ -20,7 +20,6 @@ let amountInput, nameInput;
 let measureSpan;
 
 async function setup() {
-  console.log(sha256HashHex(67));
   noCanvas();
   
   const params = new URLSearchParams(window.location.search);
@@ -30,35 +29,30 @@ async function setup() {
     (p) => p.toLowerCase() === rawPlayerName.toLowerCase()
   ) || "Unknown";
 
-  // ─── NEW: INTERCEPT UNKNOWN PLAYERS ────────────────────────────────
+  // ─── INTERCEPT UNKNOWN PLAYERS ─────────────────────────────────────
   if (playerName === "Unknown") {
     createElement("h1", "Muffin Game");
-    createP("Please enter your player name, spelled exactly as it is registered on screen. oh, btw, nothing is case-sensitive");
+    createP("Please enter your player name, spelled exactly as it is registered on screen. (Not case-sensitive)");
 
-    // Use p5 to create a standard full-width login input
+    // Standard text input for player names
     const loginInput = createInput("");
     loginInput.attribute("placeholder", "Your Name");
     loginInput.elt.focus();
 
     const joinButton = createButton("Join Game");
-    joinButton.class("dedicate-btn"); // Steal this class for a nice styled button
+    joinButton.class("dedicate-btn");
 
-    const navigateToPlayer = async () => {
+    const navigateToPlayer = () => {
       const enteredName = loginInput.value().trim();
       if (!enteredName) return;
 
-      if (await sha256HashHex(enteredName) === gameMasterPasswordHash) {
-        window.location.href = "gm.html?pwd="+enteredName;
-        return;
-      }
-
-      // If it's not the password, treat it as a normal player name
+      // Treat it strictly as a normal player name
       const newUrl = `${window.location.origin}${window.location.pathname}?player=${encodeURIComponent(enteredName)}`;
       window.location.href = newUrl;
     };
+    
     joinButton.mousePressed(navigateToPlayer);
     
-    // Allow pressing 'Enter' to submit
     loginInput.elt.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -66,9 +60,7 @@ async function setup() {
       }
     });
 
-    // CRITICAL: Stop execution here so the rest of the game interface 
-    // doesn't render and it doesn't connect to Supabase as "Unknown"
-    return;
+    return; // Stop execution so unauthorized players don't connect
   }
   // ───────────────────────────────────────────────────────────────────
 
@@ -123,15 +115,11 @@ async function setup() {
   connectToSupabase();
 }
 
-// Grows an input's width to fit what's typed (or its placeholder, if
-// empty), using the hidden measureSpan for an accurate measurement.
-// CSS's max-width on .auto-grow-input is what actually keeps it from
-// overflowing small screens, regardless of how wide this sets it to.
 function autoGrowInput(inputElem) {
   const el = inputElem.elt;
   const content = el.value.length > 0 ? el.value : el.getAttribute("placeholder") || "";
   measureSpan.html(content.replace(/\s/g, "&nbsp;") || "&nbsp;");
-  const width = measureSpan.elt.offsetWidth + 24; // padding/caret buffer
+  const width = measureSpan.elt.offsetWidth + 24; 
   el.style.width = width + "px";
 }
 
@@ -143,7 +131,6 @@ function connectToSupabase() {
     window.location.reload(); 
   });
 
-  // GM's reply to our join request
   channel.on("broadcast", { event: EVENTS.STATE_SYNC }, (msg) => {
     if (msg.payload.player === playerName) {
       pressesRemainingLocal = msg.payload.pressesRemaining;
@@ -151,7 +138,6 @@ function connectToSupabase() {
     }
   });
 
-  // Fires whenever presence info changes for anyone in the channel
   channel.on("presence", { event: "sync" }, () => {
     checkForDuplicateName();
   });
@@ -159,17 +145,16 @@ function connectToSupabase() {
   channel.subscribe(async (status) => {
     channelReady = status === "SUBSCRIBED";
     if (status === "SUBSCRIBED") {
-      // Ask the GM what our real state is
       channel.send({
         type: "broadcast",
         event: EVENTS.JOIN,
         payload: { player: playerName }
       });
-      // Announce our presence under our player name
       await channel.track({ player: playerName });
     }
   });
 }
+
 function checkForDuplicateName() {
   const state = channel.presenceState();
   let count = 0;
@@ -182,9 +167,6 @@ function checkForDuplicateName() {
     statusText.html(`Warning! It seems like someone else is also connected to ${playerName}. Like, identity theft type beat, ya know?`);
   }
 }
-
-
-
 
 function pressesLabel() {
   if (Number.isFinite(pressesRemainingLocal)){
@@ -226,26 +208,22 @@ function handleDedicate() {
   const rawAmount = amountInput.value().trim();
   const name = nameInput.value().trim();
 
-  // 1. Check if fields are empty
   if (!rawAmount || !name) {
     statusText.html("Fill in both an amount and a name first.");
     return;
   }
 
-  // 2. Convert to number and check if it's a valid numeric value
   const amount = parseFloat(rawAmount);
   if (isNaN(amount)) {
     statusText.html("Error: Amount must be a valid number.");
     return;
   }
 
-  // 3. Enforce the boundaries (between 0 and 6) locally
   if (amount < 0 || amount > 6) {
     statusText.html("Error: Dedication must be between 0 and 6 muffins.");
     return;
   }
 
-  // OPTIMIZED: Only fires if all data passes the checks above!
   channel.send({
     type: "broadcast",
     event: EVENTS.DEDICATE,
@@ -261,10 +239,9 @@ function handleDedicate() {
   autoGrowInput(nameInput);
 }
 
-// press enter to submit dedication request
 function handleInputKey(event) {
   if (event.key === "Enter") {
-    event.preventDefault(); // Prevents accidental page reloads or form flashes
+    event.preventDefault(); 
     handleDedicate();
   }
 }

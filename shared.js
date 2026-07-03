@@ -22,8 +22,6 @@ const MAX_PRESSES = 5;
 const RUN_DURATION_SECONDS = 60;
 const MAX_MUFFINS = 6;
 
-const gameMasterPasswordHash = "49d180ecf56132819571bf39d9b7b342522a2ac6d23c1418d3338251bfe469c8";
-
 
 // The players in this game. Edit this list for your session
 // (names here must exactly match, ignoring case, what you hand
