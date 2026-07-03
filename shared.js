@@ -1,6 +1,6 @@
 /* =========================================================
    MUFFIN GAME — shared.js
-   Loaded by index.html, player.html, and gm.html.
+   Loaded by index.html, index.html, and gm.html.
    Holds: Supabase setup, game constants, and the dedication
    text parser (both pages need to agree on this format).
    ========================================================= */

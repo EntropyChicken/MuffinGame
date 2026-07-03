@@ -3,29 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Muffin Game</title>
+  <title>Muffin Game — Player</title>
   <link rel="stylesheet" href="style.css" />
-</head>
-<body class="hub-page">
-  <h1>Muffin Game</h1>
-
-  <p><a href="gm.html">Open Game Master Center</a></p>
-
-  <h2>Player links</h2>
-  <ul id="player-links"></ul>
-
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.4/lib/p5.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="shared.js"></script>
-  <script>
-    const list = document.getElementById("player-links");
-    for (const p of PLAYERS) {
-      const li = document.createElement("li");
-      const a = document.createElement("a");
-      a.href = `player.html?player=${encodeURIComponent(p)}`;
-      a.textContent = p;
-      li.appendChild(a);
-      list.appendChild(li);
-    }
-  </script>
+</head>
+<body class="player-page">
+  <script src="player-sketch.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 /* =========================================================
    MUFFIN GAME — player-sketch.js
-   Each player loads: player.html?player=YourName
+   Each player loads: index.html?player=YourName
 
    This page only SENDS messages — it never receives anything
    back, and there is no confirmation from the Game Master.

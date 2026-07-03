@@ -5,7 +5,7 @@ Two static pages that talk to each other over Supabase Realtime (Broadcast):
 - `gm.html` — the Game Master Center. The single source of truth for the
   whole game. Renders the countdown timer, current runner, every player's
   remaining presses, and the chronological dedication log.
-- `player.html?player=NAME` — one page shared by every player, differentiated
+- `index.html?player=NAME` — one page shared by every player, differentiated
   by the `?player=` query parameter. Has a button to become the runner and a
   text box for dedications.
 - `index.html` — a small hub page linking to `gm.html` and to each player's
@@ -29,8 +29,7 @@ Two static pages that talk to each other over Supabase Realtime (Broadcast):
 4. Push this folder to a GitHub repo and enable GitHub Pages for it. You'll
    end up with:
    - `https://yourname.github.io/reponame/gm.html`
-   - `https://yourname.github.io/reponame/player.html?player=Alice`
-   - `https://yourname.github.io/reponame/index.html` (the hub)
+   - `https://yourname.github.io/reponame/index.html?player=Alice`
 
 ## How it works
 
