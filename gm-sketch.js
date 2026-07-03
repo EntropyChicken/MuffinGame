@@ -230,7 +230,7 @@ function drawTimerAndRunner() {
   textFont("monospace");
   textAlign(CENTER, TOP);
   
-  textSize(111);
+  textSize(115);
   if (gameStatus === "finished" || currentRunner === null) {
     fill(255);
   } else {
@@ -340,8 +340,8 @@ function drawDedicationLog() {
   textFont("monospace");
   textAlign(LEFT, TOP);
   textSize(28);
-
-  const x = width / 2; 
+  
+  const x = width / 2;
   let y = playerListStartY(); 
 
   fill(200);
@@ -394,7 +394,7 @@ function getTimeColor() {
   let timeLeft = max(0, timerEndTime - Date.now());
   let progress = timeLeft / totalTime;
   colorMode(HSB, 360, 100, 100);
-  let timeColor = color((max(progress * 270-30,-10)+360)%360,64,100);
+  let timeColor = color((max(progress * 250-10,0)+360)%360,72,100);
   colorMode(RGB, 255);
   return timeColor;
 }
