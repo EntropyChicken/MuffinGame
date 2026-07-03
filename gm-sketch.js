@@ -23,9 +23,11 @@ let dedicationLog;    // [{ time, from, to, amount }], oldest first
 let channel;
 let channelStatusText = "connecting...";
 
+let timeSpeedMultiplier = 10;
 
 
-// FIREWORKS I MADE FROM LIKE... IDK. COVID DAYS. 7TH GRADE?
+
+// FIREWORKS I MADE FROM LIKE... IDK. COVID DAYS. 7TH GRADE? LOLLLLLL
 let ganime = 0;
 let sanime = 222;
 let f = []; // Firework rockets array
@@ -336,8 +338,8 @@ function runFireworkEngine() {
   } 
   else if (round(sanime) === 330) {
     // Giant type 3 clusters
-    f.push(new FireworkRocket(100 + ((width - 200) / 7) * (ganime % 5), 3 * abs(ganime % 5 - 2) - 10, 3));
-    f.push(new FireworkRocket(width-(100 + ((width - 200) / 7) * (ganime % 5)), 3 * abs(ganime % 5 - 2) - 10, 3));
+    f.push(new FireworkRocket(100 + ((width - 200) / 10) * (ganime % 5), 3 * abs(ganime % 5 - 2) - 10, 3));
+    f.push(new FireworkRocket(width-(100 + ((width - 200) / 10) * (ganime % 5)), 3 * abs(ganime % 5 - 2) - 10, 3));
   }
 
   // Loop backward through active arrays to safely splice out expired values
@@ -354,12 +356,24 @@ function runFireworkEngine() {
 }
 
 function checkWinCondition() {
-  if (gameStatus === "running" && Date.now() >= timerEndTime) {
-    gameStatus = "finished";
-    winner = currentRunner;
+  if (gameStatus === "running") {
+    if (keyIsDown(RIGHT_ARROW)) {
+      let normalFrameMs = 1000 / frameRate();
+      let warpedMs = normalFrameMs * (timeSpeedMultiplier - 1); // fast
+      timerEndTime -= warpedMs;
+    }
+    if (keyIsDown(LEFT_ARROW)) {
+      let normalFrameMs = 1000 / frameRate();
+      let warpedMs = -2*normalFrameMs; // reverse
+      timerEndTime -= warpedMs;
+    }
+
+    if (Date.now() >= timerEndTime) {
+      gameStatus = "finished";
+      winner = currentRunner;
+    }
   }
 }
-
 function getRemainingSeconds() {
   if (gameStatus === "running") {
     return max(0, (timerEndTime - Date.now()) / 1000);
@@ -385,7 +399,7 @@ function drawTimerAndRunner() {
   fill(255);
   textSize(34);
   if (gameStatus === "finished") {
-    fill(242, 182, 50);
+    fill(255, 182, 0);
     text(`WINNER: ${winner}`, width / 2, 150);
   } else if (currentRunner) {
     fill(getTimeColor());
@@ -450,7 +464,7 @@ function drawPayout() {
   const x = 30;
   let y = playerListEndY();
 
-  fill(242, 182, 50);
+  fill(255, 182, 0);
   text("PAYOUT", x, y);
   y += 35;
 
