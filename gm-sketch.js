@@ -526,13 +526,13 @@ function drawPayout() {
     if (p === winner) continue;
     const amt = dedicationMax[winner][p] || 0;
     if (amt > 0) {
-      text(`${p} receives ${formatMuffins(amt)} muffins`, x, y);
+      text(`${p} gets ${formatMuffins(amt)} muffins`, x, y);
       y += 35;
       totalDedicated += amt;
     }
   }
   const winnerKeeps = MAX_MUFFINS - totalDedicated;
-  text(`${winner} keeps ${formatMuffins(winnerKeeps)} muffins`, x, y);
+  text(`${winner} gets ${formatMuffins(winnerKeeps)} muffins`, x, y);
 }
 
 function drawDedicationLog() {
