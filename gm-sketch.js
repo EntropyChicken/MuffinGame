@@ -121,14 +121,36 @@ class FireworkParticle {
 
 
 
-
-function setup() {
+async function setup() {
+  const isAuthenticated = await checkGMPasswordHashed();
+  if (!isAuthenticated) {
+    return;
+  }
   createCanvas(windowWidth, windowHeight);
-  angleMode(DEGREES); // Crucial for your cos() and sin() calculations to parse properly
+  angleMode(DEGREES); 
   resetGameState();
   connectToSupabase();
 }
+async function checkGMPasswordHashed() {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (await sha256HashHex(urlParams.get("pwd")) === gameMasterPasswordHash) {
+    return true;
+  }
 
+  const entered = prompt("Enter Game Master Password:");
+  if (!entered) {
+    window.location.href = "index.html";
+    return false;
+  }
+  
+  if (await sha256HashHex(entered) !== gameMasterPasswordHash) {
+    alert("Access Denied.");
+    window.location.href = "index.html";
+    return false;
+  }
+  
+  return true;
+}
 function resetGameState() {
   gameStatus = "waiting";
   currentRunner = null;

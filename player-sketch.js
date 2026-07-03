@@ -19,7 +19,8 @@ let pressesText, statusText;
 let amountInput, nameInput;
 let measureSpan;
 
-function setup() {
+async function setup() {
+  console.log(sha256HashHex(67));
   noCanvas();
   
   const params = new URLSearchParams(window.location.search);
@@ -42,15 +43,19 @@ function setup() {
     const joinButton = createButton("Join Game");
     joinButton.class("dedicate-btn"); // Steal this class for a nice styled button
 
-    // Function to handle the redirection
-    const navigateToPlayer = () => {
+    const navigateToPlayer = async () => {
       const enteredName = loginInput.value().trim();
-      if (enteredName) {
-        const newUrl = `${window.location.origin}${window.location.pathname}?player=${encodeURIComponent(enteredName)}`;
-        window.location.href = newUrl;
-      }
-    };
+      if (!enteredName) return;
 
+      if (await sha256HashHex(enteredName) === gameMasterPasswordHash) {
+        window.location.href = "gm.html?pwd="+enteredName;
+        return;
+      }
+
+      // If it's not the password, treat it as a normal player name
+      const newUrl = `${window.location.origin}${window.location.pathname}?player=${encodeURIComponent(enteredName)}`;
+      window.location.href = newUrl;
+    };
     joinButton.mousePressed(navigateToPlayer);
     
     // Allow pressing 'Enter' to submit

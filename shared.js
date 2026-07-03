@@ -22,6 +22,9 @@ const MAX_PRESSES = 5;
 const RUN_DURATION_SECONDS = 60;
 const MAX_MUFFINS = 6;
 
+const gameMasterPasswordHash = "49d180ecf56132819571bf39d9b7b342522a2ac6d23c1418d3338251bfe469c8";
+
+
 // The players in this game. Edit this list for your session
 // (names here must exactly match, ignoring case, what you hand
 // out as ?player=NAME links, and what people type in dedications).
@@ -66,4 +69,13 @@ function formatMuffins(n) {
     return n;
   }
   return parseFloat(n.toFixed(12)).toString();
+}
+
+async function sha256HashHex(text) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
 }
