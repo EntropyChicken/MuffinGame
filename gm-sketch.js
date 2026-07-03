@@ -655,7 +655,7 @@ function drawPayout() {
   let y = playerListEndY();
 
   fill(255, 182, 0);
-  text("PAYOUT", x, y);
+  text("PAYOUT:", x, y);
   y += 35;
 
   let totalDedicated = 0;
