@@ -52,6 +52,41 @@ body.player-page input {
   margin: 8px 0;
 }
 
+/* Row of "I officially dedicate [__] muffins to [__]" —
+   wraps onto a new line automatically on narrow screens. */
+.dedication-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 18px;
+  margin: 10px 0;
+}
+
+/* Inputs grow to fit typed content (via JS), but never past this,
+   so long input can't push the page wider than the phone screen. */
+.auto-grow-input {
+  width: auto !important;
+  min-width: 3ch;
+  max-width: calc(100vw - 40px);
+  display: inline-block !important;
+  margin: 0 !important;
+  padding: 2px 6px !important;
+  border: none;
+  border-bottom: 2px solid var(--accent);
+  background: transparent;
+  font: inherit;
+}
+
+/* Invisible element used only to measure text width; never shown. */
+.measure-span {
+  position: absolute;
+  visibility: hidden;
+  white-space: pre;
+  font-size: 18px;
+  font-family: inherit;
+}
+
 /* ---- Hub page ---- */
 body.hub-page {
   max-width: 480px;
@@ -61,4 +96,10 @@ body.hub-page {
 
 body.hub-page a {
   color: #a35b1f;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }

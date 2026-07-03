@@ -15,7 +15,9 @@ let pressesRemainingLocal = MAX_PRESSES;
 let channel;
 let channelReady = false;
 
-let pressesText, statusText, dedicationInput;
+let pressesText, statusText;
+let amountInput, nameInput;
+let measureSpan; // hidden element used to measure typed text width
 
 function setup() {
   noCanvas(); // this page is just a simple form, no drawing needed
@@ -35,12 +37,35 @@ function setup() {
 
   createElement("hr");
 
-  createP("Type your dedication exactly like this, then press Send:");
-  createP('"I officially dedicate 5.3 muffins to Charlie"').style("font-style", "italic");
+  createP("Fill in your dedication:");
 
-  dedicationInput = createInput("");
-  dedicationInput.attribute("size", "50");
-  dedicationInput.attribute("placeholder", "I officially dedicate ___ muffins to ___");
+  // Hidden element used purely to measure how wide the typed text is,
+  // so the visible input can grow to match it (capped by CSS max-width).
+  measureSpan = createSpan("");
+  measureSpan.class("measure-span");
+
+  const line = createDiv();
+  line.class("dedication-line");
+
+  createSpan("I officially dedicate").parent(line);
+
+  amountInput = createInput("");
+  amountInput.class("auto-grow-input");
+  amountInput.attribute("placeholder", "0.0");
+  amountInput.attribute("inputmode", "decimal");
+  amountInput.parent(line);
+  amountInput.input(() => autoGrowInput(amountInput));
+
+  createSpan("muffins to").parent(line);
+
+  nameInput = createInput("");
+  nameInput.class("auto-grow-input");
+  nameInput.attribute("placeholder", "name");
+  nameInput.parent(line);
+  nameInput.input(() => autoGrowInput(nameInput));
+
+  autoGrowInput(amountInput);
+  autoGrowInput(nameInput);
 
   const dedicateButton = createButton("Send Dedication");
   dedicateButton.mousePressed(handleDedicate);
@@ -49,6 +74,18 @@ function setup() {
   statusText.style("color", "#666");
 
   connectToSupabase();
+}
+
+// Grows an input's width to fit what's typed (or its placeholder, if
+// empty), using the hidden measureSpan for an accurate measurement.
+// CSS's max-width on .auto-grow-input is what actually keeps it from
+// overflowing small screens, regardless of how wide this sets it to.
+function autoGrowInput(inputElem) {
+  const el = inputElem.elt;
+  const content = el.value.length > 0 ? el.value : el.getAttribute("placeholder") || "";
+  measureSpan.html(content.replace(/\s/g, "&nbsp;") || "&nbsp;");
+  const width = measureSpan.elt.offsetWidth + 24; // padding/caret buffer
+  el.style.width = width + "px";
 }
 
 function connectToSupabase() {
@@ -90,11 +127,17 @@ function handleDedicate() {
     return;
   }
 
-  const text = dedicationInput.value();
-  if (!text || !text.trim()) {
-    statusText.html("Type a dedication first.");
+  const amount = amountInput.value().trim();
+  const name = nameInput.value().trim();
+
+  if (!amount || !name) {
+    statusText.html("Fill in both an amount and a name first.");
     return;
   }
+
+  // Reassemble into the same sentence format the Game Master expects,
+  // e.g. "I officially dedicate 5.3 muffins to Charlie"
+  const text = `I officially dedicate ${amount} muffins to ${name}`;
 
   channel.send({
     type: "broadcast",
@@ -103,5 +146,8 @@ function handleDedicate() {
   });
 
   statusText.html(`Sent: "${text}"`);
-  dedicationInput.value("");
+  amountInput.value("");
+  nameInput.value("");
+  autoGrowInput(amountInput);
+  autoGrowInput(nameInput);
 }

@@ -24,7 +24,7 @@ let channel;
 let channelStatusText = "connecting...";
 
 function setup() {
-  createCanvas(1000, 720);
+  createCanvas(windowWidth, windowHeight);
   resetGameState();
   connectToSupabase();
 }
@@ -194,20 +194,20 @@ function playerListStartY() {
 }
 
 function playerListEndY() {
-  return playerListStartY() + 22 + PLAYERS.length * 20 + 20;
+  return playerListStartY() + 22 + PLAYERS.length * 35 + 35;
 }
 
 function drawPlayerList() {
   textFont("monospace");
   textAlign(LEFT, TOP);
-  textSize(15);
+  textSize(28);
 
   const x = 30;
   let y = playerListStartY();
 
   fill(200);
   text("PLAYERS", x, y);
-  y += 22;
+  y += 35;
 
   for (const p of PLAYERS) {
     const isRunner = p === currentRunner && gameStatus !== "finished";
@@ -217,7 +217,7 @@ function drawPlayerList() {
       x,
       y
     );
-    y += 20;
+    y += 35;
   }
 }
 
@@ -232,46 +232,46 @@ function countPayoutLines() {
 
 function payoutEndY() {
   if (gameStatus !== "finished") return playerListEndY();
-  return playerListEndY() + 22 + countPayoutLines() * 20 + 20;
+  return playerListEndY() + 22 + countPayoutLines() * 35 + 35;
 }
 
 function drawPayout() {
   textFont("monospace");
   textAlign(LEFT, TOP);
-  textSize(15);
+  textSize(28);
 
   const x = 30;
   let y = playerListEndY();
 
   fill(242, 182, 50);
   text("PAYOUT", x, y);
-  y += 22;
+  y += 35;
 
   let totalDedicated = 0;
   for (const p of PLAYERS) {
     if (p === winner) continue;
     const amt = dedicationMax[winner][p] || 0;
     if (amt > 0) {
-      text(`${p} receives ${formatOneDecimal(amt)} muffins`, x, y);
-      y += 20;
+      text(`${p} receives ${formatMuffins(amt)} muffins`, x, y);
+      y += 35;
       totalDedicated += amt;
     }
   }
   const winnerKeeps = MAX_MUFFINS - totalDedicated;
-  text(`${winner} keeps ${formatOneDecimal(winnerKeeps)} muffins`, x, y);
+  text(`${winner} keeps ${formatMuffins(winnerKeeps)} muffins`, x, y);
 }
 
 function drawDedicationLog() {
   textFont("monospace");
   textAlign(LEFT, TOP);
-  textSize(14);
+  textSize(28);
 
   const x = 30;
   let y = payoutEndY();
 
   fill(200);
   text("DEDICATIONS", x, y);
-  y += 22;
+  y += 35;
 
   if (dedicationLog.length === 0) {
     fill(120);
@@ -282,8 +282,8 @@ function drawDedicationLog() {
   fill(200);
   for (const d of dedicationLog) {
     const timeStr = new Date(d.time).toLocaleTimeString();
-    text(`[${timeStr}] ${d.from} dedicated ${formatOneDecimal(d.amount)} muffins to ${d.to}`, x, y);
-    y += 18;
+    text(`[${timeStr}] ${d.from} dedicated ${formatMuffins(d.amount)} muffins to ${d.to}`, x, y);
+    y += 35;
   }
 }
 

@@ -19,7 +19,7 @@ const CHANNEL_NAME = "muffin-game-channel";
 
 // ---- 2) GAME CONSTANTS -----------------------------------------------------
 const MAX_PRESSES = 5;
-const RUN_DURATION_SECONDS = 100;
+const RUN_DURATION_SECONDS = 10;
 const MAX_MUFFINS = 6;
 
 // The players in this game. Edit this list for your session
@@ -57,4 +57,8 @@ function parseDedicationText(text) {
 // Always show exactly one decimal place, e.g. 20 -> "20.0", 5.34 -> "5.3"
 function formatOneDecimal(n) {
   return Number(n).toFixed(1);
+}
+
+function formatMuffins(n) {
+  return parseFloat(n.toFixed(10)).toString();
 }
