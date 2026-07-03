@@ -132,7 +132,6 @@ function handleDedicateMessage(payload) {
     return;
   }
 
-  // Find the match in your authorized players array
   const recipient = PLAYERS.find(
     (p) => p.toLowerCase() === recipientRaw.toLowerCase()
   );
@@ -151,8 +150,11 @@ function handleDedicateMessage(payload) {
     return;
   }
 
-  // Code behaves exactly the same once validated!
   dedicationMax[player][recipient] = amount;
+
+  // --- NEW: Filter out any existing log item matching this specific from -> to pair ---
+  dedicationLog = dedicationLog.filter(d => !(d.from === player && d.to === recipient));
+
   dedicationLog.push({
     time: Date.now(),
     from: player,
