@@ -988,23 +988,64 @@ function startNextRound() {
 	});
 }
 
-function drawLeaderboard(){
-	push();
-	fill(0,190);
-	rect(0,0,width,height);
-	fill(255);
-	textAlign(CENTER,TOP);
-	textSize(40);
-	text("LEADERBOARD",width/2,30);
-	const standings = Object.entries(playerWealth).sort((a,b)=>b[1]-a[1]);
-	textAlign(LEFT,TOP);
-	textSize(28);
-	let y=100;
-	for(const [name,wealth] of standings){
-		text(name+": "+formatMuffins(wealth),80,y);
-		y+=36;
-	}
-	pop();
+  function drawLeaderboard(){
+    push();
+  fill(0, 190);
+  rect(0, 0, width, height);
+  fill(255);
+  textAlign(CENTER, TOP);
+  textSize(40);
+  text("LEADERBOARD", width / 2, 30);
+
+  const standings = Object.entries(playerWealth).sort((a, b) => b[1] - a[1]);
+  
+  // Set the text size BEFORE measuring textWidth, otherwise the measurements will be wrong!
+  textAlign(LEFT, TOP);
+  textSize(28);
+
+  // --- PASS 1: Calculate ranks and track max text widths ---
+  let leaderboardRows = [];
+  let displayRank = 1;
+  let lastWealth = null;
+  
+  let maxRankWidth = 0;
+  let maxNameWidth = 0;
+
+  for (let i = 0; i < standings.length; i++) {
+    const [name, wealth] = standings[i];
+    
+    if (i > 0 && wealth < lastWealth) {
+      displayRank = i + 1;
+    }
+    
+    let rankStr = `#${displayRank}.`;
+    let wealthStr = formatMuffins(wealth);
+    
+    // Track the widest text element for each column
+    maxRankWidth = max(maxRankWidth, textWidth(rankStr));
+    maxNameWidth = max(maxNameWidth, textWidth(name));
+    
+    // Store processed data for the drawing pass
+    leaderboardRows.push({ rankStr, name, wealthStr });
+    lastWealth = wealth;
+  }
+
+  // --- PASS 2: Calculate dynamic column X positions and draw ---
+  let padding = 40; // The comfortable gap between columns
+  
+  let rankX = 80;                           // Column 1 starts here
+  let nameX = rankX + maxRankWidth + padding; // Column 2 shifts past Column 1 + padding
+  let wealthX = nameX + maxNameWidth + padding; // Column 3 shifts past Column 2 + padding
+
+  let y = 100;
+  for (const row of leaderboardRows) {
+    text(row.rankStr, rankX, y);
+    text(row.name, nameX, y);
+    text(row.wealthStr, wealthX, y);
+    y += 36;
+  }
+  
+  pop();
 }
 
 function keyPressed(){
