@@ -282,6 +282,9 @@ function initializeActivePlayerPodium() {
   const pressButton = createButton("Become the Runner").parent(centerCol);
   pressButton.mousePressed(handlePress);
   pressButton.class("press-btn");
+  
+  pressButton.elt.style.setProperty("background", "#5555ff", "important");
+  pressButton.elt.style.setProperty("color", "#1a1a1a", "important");
 
   createElement("hr").parent(centerCol);
 

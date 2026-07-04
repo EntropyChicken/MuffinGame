@@ -146,10 +146,10 @@ async function setup() {
     return;
   }
 
-  nextRoundButton = createButton("Start Next Round");
+  nextRoundButton = createButton("New Round");
   nextRoundButton.style("position", "fixed");
   nextRoundButton.style("bottom", "20px");
-  nextRoundButton.style("right", "260px");   // leaves room for the Add player input
+  nextRoundButton.style("right", "20px");   // leaves room for the Add player input
   nextRoundButton.style("padding", "8px 12px");
   nextRoundButton.style("font-family", "monospace");
   nextRoundButton.style("font-size", "16px");
@@ -162,18 +162,19 @@ async function setup() {
   nextRoundButton.mousePressed(startNextRound);
 
   addPlayerInput = createInput("");
-  addPlayerInput.attribute("placeholder", "Add player name...");
+  addPlayerInput.attribute("placeholder", "Add player...");
   addPlayerInput.style("position", "fixed");
   addPlayerInput.style("bottom", "20px");
-  addPlayerInput.style("right", "20px");
+  addPlayerInput.style("right", "144px");
   addPlayerInput.style("padding", "8px 12px");
   addPlayerInput.style("font-family", "monospace");
   addPlayerInput.style("font-size", "16px");
+  addPlayerInput.style("width", "140px");             // Added a fixed compact width
   addPlayerInput.style("background", "#333");
   addPlayerInput.style("color", "#fff");
   addPlayerInput.style("border", "1px solid #555");
   addPlayerInput.style("border-radius", "4px");
-  addPlayerInput.style("z-index", "10000"); 
+  addPlayerInput.style("z-index", "10000");
 
   addPlayerInput.elt.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
@@ -593,14 +594,16 @@ function drawWaitingRoom() {
   noFill();
   strokeWeight(10);
   let high = min(255,random(100,300));
-  let alpha = random(50,150);
   if(random(0,2)<1){
-    stroke(high,high*0.4,0,alpha);
+    stroke(high,high*0.7,0,random(50,150));
   }
   else{
-    stroke(0,high*0.8,high,alpha);
+    stroke(high*0.4,high*0.4,high,random(50,180));
   }
-  let rad = pow(random(0,1.1),6)*40+20;
+  let rad = pow(random(0,1.1),6)*40+15;
+  if(random(0,10)<1){
+    rad*=random(1,3);
+  }
   let x = random(-rad,width+rad);
   let y = random(-rad,height+rad);
   ellipse(x,y,rad*2,rad*2);
