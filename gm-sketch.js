@@ -187,6 +187,10 @@ async function setup() {
   });
 }
 
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
 async function checkGMPasswordHashed() {
   return new Promise((resolve) => {
     let overlay = createDiv();
