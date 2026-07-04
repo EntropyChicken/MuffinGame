@@ -40,7 +40,10 @@ let payoutAppliedThisRound = false;
 let nextRoundButton;
 
 let doTimeCrunchRedness = false;
-let spinnyWaitingRoom, buffer, bufferSize;
+let waitingRoomImg;
+let spinnyWaitingRoom = false, buffer, bufferSize; // very laggy
+let defaultTextBoxOpacity = 190;
+let textBoxOpacity = defaultTextBoxOpacity;
 
 // FIREWORKS I MADE FROM LIKE... IDK. COVID DAYS. 7TH GRADE? LOLLLLLL
 let ganime = 0;
@@ -576,7 +579,18 @@ function handlePressMessage(payload) {
     return;
   }
 
-  buttonPressFlash += 1; 
+  buttonPressFlash += 1;
+
+  // make black
+  waitingRoomImg = createImage(width, height);
+  waitingRoomImg.loadPixels();
+  for (let i = 0; i < waitingRoomImg.pixels.length; i += 4) {
+    waitingRoomImg.pixels[i] = 0;     // R
+    waitingRoomImg.pixels[i+1] = 0;   // G
+    waitingRoomImg.pixels[i+2] = 0;   // B
+    waitingRoomImg.pixels[i+3] = 255; // A
+  }
+  waitingRoomImg.updatePixels();
 
   pressesRemaining[player]--;
   currentRunner = player;
@@ -681,7 +695,8 @@ function handleNameRequest(payload) {
 
 function draw() {
   if (!isAuthenticated) {
-    drawWaitingRoom();
+    drawWaitingRoom(1,0,1,1);
+    background(70,80);
     return; 
   }
 
@@ -699,91 +714,81 @@ function draw() {
     drawLeaderboard();
   }
 }
-function drawWaitingRoom() {
-  if(spinnyWaitingRoom){
-    // 1. CAPTURE THE BUFFER (not the real canvas)
-    let img = buffer.get();
-
-    // 2. FADE THE BUFFER'S BACKGROUND
-    buffer.background(0, 15);
-
-    // 3. MANIPULATE AND REDRAW THE CAPTURED IMAGE, on the buffer
-    buffer.push();
-    buffer.translate(bufferSize / 2, bufferSize / 2);
-    buffer.rotate(0.01);
-    buffer.scale(0.99);
-    buffer.imageMode(CENTER);
-    buffer.image(img, 0, 0);
-    buffer.pop();
-
-    // 4. DRAW NEW RANDOM CIRCLES — constrained to the buffer's safe zone
-    buffer.noFill();
-    buffer.strokeWeight(10);
-    let high = min(255, random(100, 300));
-    if (random(0, 2) < 1) {
-      buffer.stroke(high, high * 0.7, 0, random(50, 150));
-    } else {
-      buffer.stroke(high * 0.4, high * 0.4, high, random(50, 180));
+function drawWaitingRoom(scaleFactor=1.0008, angleChange=0.025, iterations=2, fadeFreq=0.1, col) {
+  push();
+  for(let iter = 0; iter<iterations; iter++){ 
+    push();
+    translate(width / 2, height / 2);
+    scale(scaleFactor);
+    if(spinnyWaitingRoom){
+      rotate(angleChange);
     }
+    imageMode(CENTER);
+    if (waitingRoomImg !== undefined){
+      image(waitingRoomImg, 0, 0);
+    }
+    pop();
 
+    noFill();
+    strokeWeight(10);
+    let high = constrain(random(-20, 400),0,255);
+    if (col === undefined) {
+      if (random(0, 2) < 1) {
+        stroke(high, high * 0.7, 0, random(50, 170));
+      } else {
+        stroke(high * 0.4, high * 0.4, high, random(50, 210));
+      }
+    }
+    else{
+      stroke(red(col),green(col),blue(col),random(50, 210));
+    }
+    
     let rad = pow(random(0, 1.1), 6) * 40 + 15;
     if (random(0, 10) < 1) {
       rad *= random(1, 3);
     }
-    // These bounds now use bufferSize, not width/height — and are inset by rad
-    // instead of allowing spawn past the edge, so circles never get clipped.
-    let x = random(rad+15, bufferSize - rad-15);
-    let y = random(rad+15, bufferSize - rad-15);
-    buffer.ellipse(x, y, rad * 2, rad * 2);
-
-    // 5. DRAW A CENTERED SUBSET OF THE BUFFER ONTO THE REAL CANVAS
-    let sx = (bufferSize - width) / 2;
-    let sy = (bufferSize - height) / 2;
-    image(buffer, 0, 0, width, height, sx, sy, width, height);
+    let x = random(-rad, width + rad);
+    let y = random(-rad, height + rad);
+    ellipse(x, y, rad * 2, rad * 2);
+    
+    if(random(0,1)<fadeFreq){
+      background(0,5);
+    }
+    waitingRoomImg = get();
   }
-  else{
-    push();
-    noFill();
-    strokeWeight(10);
-    let high = min(255,random(100,300));
-    if(random(0,2)<1){
-      stroke(high,high*0.7,0,random(50,150));
-    }
-    else{
-      stroke(high*0.4,high*0.4,high,random(50,180));
-    }
-    let rad = pow(random(0,1.1),6)*40+15;
-    if(random(0,10)<1){
-      rad*=random(1,3);
-    }
-    let x = random(-rad,width+rad);
-    let y = random(-rad,height+rad);
-    ellipse(x,y,rad*2,rad*2);
-    if(random(0,3)<1){
-      fill(0,6);
-      noStroke();
-      rect(-1,-1,width+2,height+2);
-    }
-    pop();
-  } 
+  pop();
 }
 
 function drawBackground() {
   if (gameStatus === "finished") {
+    textBoxOpacity = defaultTextBoxOpacity;
     fill(0, 30);
     rect(0, 0, width, height);
     runFireworkEngine();
   } 
   else if (currentRunner === null) {
-    background(50 + 205 * buttonPressFlash);
+    textBoxOpacity = 0;
+    background(45 + 210 * buttonPressFlash);
   } 
   else {
+    textBoxOpacity = defaultTextBoxOpacity;
     let redness = 0;
     if(doTimeCrunchRedness && getRemainingSeconds()<18){
       redness = max(0,1.5*max(8,18-getRemainingSeconds())*(1+sin(millis()*PI/4)));
     }
     let baseColor = color(redness,0,0);
-    background(lerpColor(baseColor,getTimeColor(),buttonPressFlash));
+    let backgroundColor = getTimeColor();
+    backgroundColor.setAlpha(buttonPressFlash);
+    
+    if(getRemainingSeconds()>10){
+      drawWaitingRoom(1.002,0.08,1,0.1,getTimeColor());
+      background(0,map(sq(map(getRemainingSeconds(),10,runDurationSeconds,1,0)),1,0,255,150));
+    }
+    else{
+      background(0);
+    }
+    
+    background(backgroundColor);
   }
   
   buttonPressFlash *= 0.9;
@@ -889,6 +894,51 @@ function getRemainingSeconds() {
   return runDurationSeconds;
 }
 
+function textBox(...args) {
+  const str = args[0];
+  const x = args[1];
+  const y = args[2];
+
+  push();
+  const currentFill = drawingContext.fillStyle;
+  const textW = textWidth(str);
+  const textH = textAscent() + textDescent();
+  const hAlign = drawingContext.textAlign || "left";
+  const vAlign = drawingContext.textBaseline || "alphabetic";
+
+  let boxX = x;
+  let boxY = y;
+  const padX = 20;
+  const padY = 12;
+  const radius = 8;
+
+  if (hAlign === "center") {
+    boxX = x - textW / 2 - padX;
+  } else if (hAlign === "right") {
+    boxX = x - textW - padX;
+  } else {
+    boxX = x - padX;
+  }
+
+  if (vAlign === "top") {
+    boxY = y - padY;
+  } else if (vAlign === "middle") {
+    boxY = y - textH / 2 - padY;
+  } else if (vAlign === "bottom") {
+    boxY = y - textH - padY;
+  } else {
+    boxY = y - textAscent() - padY;
+  }
+
+  noStroke();
+  rectMode(CORNER);
+  fill(0, textBoxOpacity);
+  rect(boxX, boxY, textW + padX * 2, textH + padY*1.7, radius);
+  fill(currentFill);
+  text(...args);
+  pop();
+}
+
 function drawTimerAndRunner() {
   textFont("monospace");
   textAlign(CENTER, TOP);
@@ -899,19 +949,19 @@ function drawTimerAndRunner() {
   } else {
     fill(getTimeColor());
   }
-  text(formatTimer(getRemainingSeconds()), width / 2, 30);
+  textBox(formatTimer(getRemainingSeconds()), width / 2, 30);
   
   fill(255);
   textSize(60);
   if (gameStatus === "finished") {
     fill(255, 182, 0);
-    text(winner ? `WINNER: ${winner}` : "WINNER: the concept of wealth redistribution", width / 2, 142);
+    textBox(winner ? `WINNER: ${winner}` : "WINNER: the concept of wealth redistribution", width / 2, 142);
   } else if (currentRunner) {
     fill(getTimeColor());
-    text(`Runner: ${currentRunner}`, width / 2, 142);
+    textBox(`Runner: ${currentRunner}`, width / 2, 142);
   } else {
     fill(150);
-    text("Runner: nobody yet", width / 2, 142);
+    textBox("Runner: nobody yet", width / 2, 142);
   }
 }
 
@@ -932,12 +982,12 @@ function drawPlayerList() {
   let y = playerListStartY();
 
   fill(200);
-  text("PLAYERS:", x, y);
+  textBox("PLAYERS:", x, y);
   y += 35;
   
   if (players.length === 0) {
     fill(120);
-    text("(none yet)", x, y);
+    textBox("(none yet)", x, y);
     return;
   }
 
@@ -955,11 +1005,11 @@ function drawPlayerList() {
     const isRunner = p === currentRunner && gameStatus !== "finished";
     fill(isRunner ? getTimeColor() : color(200));
     
-    text(p, x, y);
+    textBox(p, x, y);
     
     const statusX = x + maxNameWidth + statusGap;
     const statusTextString = "("+pressesRemaining[p]+" left)";
-    text(statusTextString, statusX, y);
+    textBox(statusTextString, statusX, y);
     
     y += 35;
   }
@@ -991,7 +1041,7 @@ function drawPayout() {
   let y = playerListEndY();
 
   fill(255, 182, 0);
-  text("PAYOUT:", x, y);
+  textBox("PAYOUT:", x, y);
   y += 35;
 
   let totalDedicated = 0;
@@ -999,13 +1049,13 @@ function drawPayout() {
     if (p === winner) continue;
     const amt = dedicationMax[winner][p] || 0;
     if (amt > 0) {
-      text(`${p} gets ${formatMuffins(amt)} muffins`, x, y);
+      textBox(`${p} gets ${formatMuffins(amt)} muffins`, x, y);
       y += 35;
       totalDedicated += amt;
     }
   }
   const winnerKeeps = maxMuffins - totalDedicated;
-  text(`${winner} gets ${formatMuffins(winnerKeeps)} muffins and is the WINNER`, x, y);
+  textBox(`${winner} gets ${formatMuffins(winnerKeeps)} muffins and is the WINNER`, x, y);
 }
 
 function drawDedicationLog() {
@@ -1017,12 +1067,12 @@ function drawDedicationLog() {
   let y = playerListStartY(); 
 
   fill(200);
-  text("DEDICATIONS:", x, y);
+  textBox("DEDICATIONS:", x, y);
   y += 35;
 
   if (dedicationLog.length === 0) {
     fill(120);
-    text("(none yet)", x, y);
+    textBox("(none yet)", x, y);
     return;
   }
 
@@ -1040,13 +1090,13 @@ function drawDedicationLog() {
 
   if (showEllipsis) {
     fill(120);
-    text("...", x, y);
+    textBox("...", x, y);
     y += 35;
   }
 
   fill(200);
   for (const d of itemsToRender) {
-    text(`${d.from} to ${d.to}: ${formatMuffins(d.amount)}`, x, y);
+    textBox(`${d.from} to ${d.to}: ${formatMuffins(d.amount)}`, x, y);
     y += 35;
   }
 }
@@ -1056,7 +1106,7 @@ function drawConnectionStatus() {
   textAlign(RIGHT, BOTTOM);
   textSize(10);
   fill(90);
-  text(`realtime: ${channelStatusText}`, width - 5, height - 5);
+  textBox(`realtime: ${channelStatusText}`, width - 5, height - 5);
 }
 
 function getTimeColor() {
@@ -1150,7 +1200,7 @@ function startNextRound() {
   fill(255);
   textAlign(CENTER, TOP);
   textSize(40);
-  text("LEADERBOARD", width / 2, 30);
+  textBox("LEADERBOARD", width / 2, 30);
 
   const standings = Object.entries(playerWealth).sort((a, b) => b[1] - a[1]);
   
@@ -1194,9 +1244,9 @@ function startNextRound() {
 
   let y = 100;
   for (const row of leaderboardRows) {
-    text(row.rankStr, rankX, y);
-    text(row.name, nameX, y);
-    text(row.wealthStr, wealthX, y);
+    textBox(row.rankStr, rankX, y);
+    textBox(row.name, nameX, y);
+    textBox(row.wealthStr, wealthX, y);
     y += 36;
   }
   
