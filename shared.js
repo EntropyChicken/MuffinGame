@@ -20,7 +20,7 @@ const CHANNEL_NAME = "muffin-game-channel";
 // ---- 2) GAME CONSTANTS -----------------------------------------------------
 const MAX_PRESSES = 5;
 const RUN_DURATION_SECONDS = 60;
-const MAX_MUFFINS = 6;
+const MAX_MUFFINS = 24;
 
 
 // The players in this game. Edit this list for your session
