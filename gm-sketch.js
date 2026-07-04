@@ -32,6 +32,8 @@ let channelStatusText = "connecting...";
 
 let timeSpeedMultiplier = 10;
 
+let buttonPressFlash = 0;
+
 
 
 // FIREWORKS I MADE FROM LIKE... IDK. COVID DAYS. 7TH GRADE? LOLLLLLL
@@ -492,16 +494,7 @@ function handleNameRequest(payload) {
 // ---- Rendering ----------------------------------------------------------------
 function draw() {
   if (!isAuthenticated) {
-    noStroke();
-    for(let i = 0; i<3; i++){
-      fill(random(0,255),random(40,120));
-      let rad = 5+pow(random(0,1.1),6)*40;
-      ellipse(random(-rad,width+rad),random(-rad,height+rad),rad*2,rad*2);
-    }
-    if(random(0,3)<1){
-      fill(0,6);
-      rect(-1,-1,width+2,height+2);
-    }
+    drawWaitingRoom();
     return; 
   }
 
@@ -517,6 +510,18 @@ function draw() {
 }
 
 // --- RENDERING HOOKS FOR BACKGROUNDS & TRAIL GENERATION ---
+function drawWaitingRoom() {
+  noStroke();
+  for(let i = 0; i<3; i++){
+    fill(random(100,255),random(40,120));
+    let rad = 5+pow(random(0,1.1),6)*40;
+    ellipse(random(-rad,width+rad),random(-rad,height+rad),rad*2,rad*2);
+  }
+  if(random(0,3)<1){
+    fill(0,6);
+    rect(-1,-1,width+2,height+2);
+  }
+}
 function drawBackground() {
   if (gameStatus === "finished") {
     // Semi-transparent overlay allows fireworks to leave motion trails
@@ -528,7 +533,7 @@ function drawBackground() {
     background(50);
   } 
   else {
-    background(0);
+    background(255*buttonPressFlash);
   }
 }
 
