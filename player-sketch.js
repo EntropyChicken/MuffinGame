@@ -178,9 +178,9 @@ function connectToSupabase() {
   channel.on("broadcast", { event: EVENTS.SETTINGS_SYNC }, (msg) => {
     if (msg.payload) {
       maxMuffins = msg.payload.maxMuffins;
+      maxPresses = msg.payload.maxPresses;
       runDurationSeconds = msg.payload.runDurationSeconds;
-      maxPresses = msg.payload.maxPresses; // ADD THIS LINE
-      if (pressesText) pressesText.html(pressesLabel()); // Re-render label to match the new dynamic ceiling
+      if (pressesText) pressesText.html(pressesLabel());
     }
   });
   channel.on("broadcast", { event: EVENTS.DEDICATE_ERROR }, (msg) => {
@@ -254,7 +254,7 @@ function handleDedicate() {
     payload: { player: playerName, amount: amount, recipient: name }
   });
 
-  statusText.html(`Requested dedication of ${formatMuffins(amount)} muffins to ${name}.`);
+  statusText.html(`Sent dedication of ${formatMuffins(amount)} muffins to ${name}.`);
 }
 
 function initializeActivePlayerPodium() {
@@ -264,55 +264,16 @@ function initializeActivePlayerPodium() {
   document.body.innerHTML = "";
 
   mainLayout = createDiv();
-  mainLayout.style("display","grid");
-  mainLayout.style("grid-template-columns","1fr 2fr 1fr");
-  mainLayout.style("gap","40px");
-  mainLayout.style("width","100%");
-  mainLayout.style("max-width","1500px");
+  mainLayout.style("display","flex");
+  mainLayout.style("flex-direction","column");
+  mainLayout.style("align-items","center");
+  mainLayout.style("max-width","900px");
   mainLayout.style("margin","0 auto");
-  mainLayout.style("padding","20px");
-  mainLayout.style("align-items","start");
+  mainLayout.style("padding","25px");
 
-  leftCol = createDiv().parent(mainLayout);
-  leftCol.style('flex', '1').style('text-align', 'left').style('padding', '0 20px');
-  leftCol.html(`
-  <h2 style="
-  font-family:monospace;
-  color:#ffb600;
-  margin-bottom:15px;">
-  Dedications FROM Others
-  </h2>
-
-  <div id="from-list"
-  style="
-  font-family:monospace;
-  font-size:22px;
-  line-height:1.7;">
-  Loading...
-  </div>
-  `);
-  
   centerCol = createDiv().parent(mainLayout);
   centerCol.style('flex', '2').style('text-align', 'center');
 
-  rightCol = createDiv().parent(mainLayout);
-  rightCol.style('flex', '1').style('text-align', 'right').style('padding', '0 20px');
-  rightCol.html(`
-  <h2 style="
-  font-family:monospace;
-  color:#ffb600;
-  margin-bottom:15px;">
-  Dedications TO Others
-  </h2>
-
-  <div id="to-list"
-  style="
-  font-family:monospace;
-  font-size:22px;
-  line-height:1.7;">
-  Loading...
-  </div>
-  `);
   createElement("h1", playerName).parent(centerCol);
 
   pressesText = createP(pressesLabel()).parent(centerCol);
@@ -359,6 +320,50 @@ function initializeActivePlayerPodium() {
 
   statusText = createP("").parent(centerCol);
   statusText.style("color", "#889");  
+
+  const listsContainer = createDiv().parent(mainLayout);
+  listsContainer.style("display","grid");
+  listsContainer.style("grid-template-columns","1fr 1fr");
+  listsContainer.style("gap","60px");
+  listsContainer.style("width","100%");
+  listsContainer.style("margin-top","35px");
+  listsContainer.style("align-items","start");
+  leftCol = createDiv().parent(listsContainer);
+  leftCol.style("text-align","left");
+  leftCol.html(`
+  <h3 style="
+  font-family:monospace;
+  color:#ffb600;
+  margin-bottom:12px;">
+  Dedications From:
+  </h3>
+
+  <div id="from-list"
+  style="
+  font-family:monospace;
+  font-size:20px;
+  line-height:1.6;">
+  (none)
+  </div>
+  `);
+  rightCol = createDiv().parent(listsContainer);
+  rightCol.style("text-align","left");
+  rightCol.html(`
+  <h3 style="
+  font-family:monospace;
+  color:#ffb600;
+  margin-bottom:12px;">
+  Dedications To:
+  </h3>
+
+  <div id="to-list"
+  style="
+  font-family:monospace;
+  font-size:20px;
+  line-height:1.6;">
+  (none)
+  </div>
+  `);
   
   channel.send({
     type: "broadcast",
@@ -375,17 +380,19 @@ function renderDedicationsLists(dedicationMax) {
 
   for (const p of players) {
 
-    if (p === playerName) continue;
-
     const amt =
       dedicationMax[p]?.[playerName] ?? 0;
 
     if (amt > 0) {
       fromHtml += `
-      <div>
-        <b>${p}</b><br>
-        ${formatMuffins(amt)} muffins
-      </div><br>`;
+      <div style="
+      display:flex;
+      justify-content:space-between;
+      margin-bottom:10px;
+      font-family:monospace;">
+      <span>${p}</span>
+      <span>${formatMuffins(amt)}</span>
+      </div>`;
     }
   }
 
@@ -393,16 +400,18 @@ function renderDedicationsLists(dedicationMax) {
 
   for (const p of players) {
 
-    if (p === playerName) continue;
-
     const amt = mine[p] || 0;
 
     if (amt > 0) {
       toHtml += `
-      <div>
-        <b>${p}</b><br>
-        ${formatMuffins(amt)} muffins
-      </div><br>`;
+      <div style="
+      display:flex;
+      justify-content:space-between;
+      margin-bottom:10px;
+      font-family:monospace;">
+      <span>${p}</span>
+      <span>${formatMuffins(amt)}</span>
+      </div>`;
     }
   }
 

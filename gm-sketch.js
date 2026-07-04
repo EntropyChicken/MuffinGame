@@ -335,7 +335,7 @@ function connectToSupabase() {
     channel.send({
       type: "broadcast",
       event: EVENTS.SETTINGS_SYNC,
-      payload: { maxMuffins, runDurationSeconds }
+      payload: { maxPresses, maxMuffins, runDurationSeconds }
     });
     channel.send({
       type: "broadcast",
@@ -390,7 +390,7 @@ function handleJoinMessage(payload) {
   channel.send({
     type: "broadcast",
     event: EVENTS.SETTINGS_SYNC,
-    payload: { maxMuffins, runDurationSeconds }
+    payload: { maxPresses, maxMuffins, runDurationSeconds }
   });
   
   channel.send({
