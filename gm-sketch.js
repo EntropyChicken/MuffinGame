@@ -140,7 +140,7 @@ let qrImg;
 let cnv; 
 
 function preload() {
-  qrImg = loadImage('join_qrcode.png');
+  qrImg = loadImage('assets/join_qrcode.png');
 }
 
 async function setup() {
@@ -221,7 +221,7 @@ async function checkGMPasswordHashed() {
     qrLabel.style('color', '#ffffff'); qrLabel.style('font-size', '24px'); qrLabel.style('margin', '0');
     qrLabel.style("font-size","24px");
 
-    let qrCodeImg = createImg('join_qrcode.png', 'Player QR Code').parent(overlay);
+    let qrCodeImg = createImg('assets/join_qrcode.png', 'Player QR Code').parent(overlay);
     qrCodeImg.style('width', '300px');
     qrCodeImg.style('height', '300px');
     qrCodeImg.style('margin-bottom', '20px');
