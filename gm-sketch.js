@@ -125,7 +125,12 @@ class FireworkParticle {
   }
 }
 
+let qrImg;
+let cnv; // <-- Declare it here globally
 
+function preload() {
+  qrImg = loadImage('qrcode_entropychicken.github.io.png');
+}
 
 
 async function setup() {
@@ -171,23 +176,43 @@ async function setup() {
 
 async function checkGMPasswordHashed() {
   return new Promise((resolve) => {
-    // 1. Create dark fullscreen interface blocker
+    // 1. Create a dark fullscreen interface blocker container
     let overlay = createDiv();
     overlay.style('position', 'fixed');
     overlay.style('top', '0'); overlay.style('left', '0');
     overlay.style('width', '100vw'); overlay.style('height', '100vh');
-    overlay.style('background', '#222222');
+    overlay.style('background', '#121212'); // Deep dark mode matching style.css
     overlay.style('display', 'flex'); overlay.style('flex-direction', 'column');
     overlay.style('justify-content', 'center'); overlay.style('align-items', 'center');
-    overlay.style('z-index', '9999');
+    overlay.style('gap', '15px'); // Creates even spacing down the row
+    overlay.style('z-index', '99999');
+    overlay.style('font-family', 'monospace');
 
-    let label = createP("Password:").parent(overlay);
-    label.style('color', '#ffffff'); label.style('font-family', 'monospace'); label.style('font-size', '20px');
+    // 2. Row item 1: Text Header
+    let qrLabel = createP("QR CODE FOR PLAYERS:").parent(overlay);
+    qrLabel.style('color', '#ffffff'); qrLabel.style('font-size', '24px'); qrLabel.style('margin', '0');
 
-    // 2. Create the hidden password field
+    // 3. Row item 2: Native HTML image loading the PNG file directly
+    let qrCodeImg = createImg('qrcode_entropychicken.github.io.png', 'Player QR Code').parent(overlay);
+    qrCodeImg.style('width', '300px');
+    qrCodeImg.style('height', '300px');
+    qrCodeImg.style('margin-bottom', '20px'); // Give some extra padding before the password section
+
+    // 4. Row item 3: Password notice heading
+    let passLabel = createP("PASSWORD FOR GAME MASTER:").parent(overlay);
+    passLabel.style('color', '#ffffff'); passLabel.style('font-size', '24px'); passLabel.style('margin', '0');
+
+    // 5. Row item 4: Interactive masked password block
     let passInput = createInput("").parent(overlay);
-    passInput.attribute("type", "password"); // ⭐ Hides characters with asterisks/dots!
-    passInput.style('padding', '10px'); passInput.style('font-size', '16px'); passInput.style('text-align', 'center');
+    passInput.attribute("type", "password");
+    passInput.style('padding', '10px 15px'); 
+    passInput.style('font-size', '18px'); 
+    passInput.style('text-align', 'center');
+    passInput.style('font-family', 'monospace');
+    passInput.style('background', '#222');
+    passInput.style('color', '#fff');
+    passInput.style('border', '1px solid #555');
+    passInput.style('border-radius', '4px');
     passInput.elt.focus();
 
     const submitPass = async () => {
@@ -195,7 +220,7 @@ async function checkGMPasswordHashed() {
       
       // Compute and run against the global shared hash variable
       if (await sha256HashHex(entered) === gameMasterPasswordHash) {
-        overlay.remove(); // Burn layout overlay 
+        overlay.remove(); // Burn layouts entirely out of memory
         resolve(true);
       } else {
         alert("Access Denied.");
@@ -204,7 +229,7 @@ async function checkGMPasswordHashed() {
       }
     };
 
-    // 3. Bind keystroke capture
+    // Bind keystroke capture
     passInput.elt.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -457,12 +482,13 @@ function handleNameRequest(payload) {
 }
 
 // ---- Rendering ----------------------------------------------------------------
-
 function draw() {
-  if(!isAuthenticated) return;
+  if (!isAuthenticated) {
+    background(20); // Clean dark placeholder backdrop
+    return; 
+  }
 
   checkWinCondition();
-
   drawBackground();
   drawTimerAndRunner();
   drawPlayerList();

@@ -2,6 +2,11 @@
 
 An original game I came up with in order to write a story about game theory concepts falling apart under real-world behavior.
 
+## Player Registration QR Code
+Scan this code to join the game session as a player:
+
+<img src="qrcode_entropychicken.github.io.png" width="300" alt="Muffin Game Player Registration QR Code" />
+
 ## The Rules
 * **The Goal:** Be the "runner" for 100 uninterrupted seconds to win.
 * **The Buttons:** Each player has 5 presses. Pressing your button makes you the runner and resets the 100-second timer. 

@@ -25,7 +25,7 @@ async function setup() {
   noCanvas();
   
   // Show a clean placeholder status right away while waiting for the GM
-  let loadingText = createP("Waiting for a Game Master... 🥀");
+  let loadingText = createP("Waiting for a Game Master...");
   loadingText.id("gm-waiting-message");
   loadingText.style("font-family", "monospace");
   loadingText.style("color", "#444");
