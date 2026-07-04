@@ -40,6 +40,7 @@ let payoutAppliedThisRound = false;
 let nextRoundButton;
 
 let doTimeCrunchRedness = false;
+let spinnyWaitingRoom, buffer, bufferSize;
 
 // FIREWORKS I MADE FROM LIKE... IDK. COVID DAYS. 7TH GRADE? LOLLLLLL
 let ganime = 0;
@@ -143,6 +144,9 @@ async function setup() {
   createCanvas(windowWidth, windowHeight);
   angleMode(DEGREES);
   connectToSupabase();
+  bufferSize = max(width, height) * 1.6;
+  buffer = createGraphics(bufferSize, bufferSize);
+  buffer.background(0);
 
   isAuthenticated = await checkGMPasswordHashed();
   if (!isAuthenticated) {
@@ -695,31 +699,73 @@ function draw() {
     drawLeaderboard();
   }
 }
-
 function drawWaitingRoom() {
-  push();
-  noFill();
-  strokeWeight(10);
-  let high = min(255,random(100,300));
-  if(random(0,2)<1){
-    stroke(high,high*0.7,0,random(50,150));
+  if(spinnyWaitingRoom){
+    // 1. CAPTURE THE BUFFER (not the real canvas)
+    let img = buffer.get();
+
+    // 2. FADE THE BUFFER'S BACKGROUND
+    buffer.background(0, 15);
+
+    // 3. MANIPULATE AND REDRAW THE CAPTURED IMAGE, on the buffer
+    buffer.push();
+    buffer.translate(bufferSize / 2, bufferSize / 2);
+    buffer.rotate(0.01);
+    buffer.scale(0.99);
+    buffer.imageMode(CENTER);
+    buffer.image(img, 0, 0);
+    buffer.pop();
+
+    // 4. DRAW NEW RANDOM CIRCLES — constrained to the buffer's safe zone
+    buffer.noFill();
+    buffer.strokeWeight(10);
+    let high = min(255, random(100, 300));
+    if (random(0, 2) < 1) {
+      buffer.stroke(high, high * 0.7, 0, random(50, 150));
+    } else {
+      buffer.stroke(high * 0.4, high * 0.4, high, random(50, 180));
+    }
+
+    let rad = pow(random(0, 1.1), 6) * 40 + 15;
+    if (random(0, 10) < 1) {
+      rad *= random(1, 3);
+    }
+    // These bounds now use bufferSize, not width/height — and are inset by rad
+    // instead of allowing spawn past the edge, so circles never get clipped.
+    let x = random(rad+15, bufferSize - rad-15);
+    let y = random(rad+15, bufferSize - rad-15);
+    buffer.ellipse(x, y, rad * 2, rad * 2);
+
+    // 5. DRAW A CENTERED SUBSET OF THE BUFFER ONTO THE REAL CANVAS
+    let sx = (bufferSize - width) / 2;
+    let sy = (bufferSize - height) / 2;
+    image(buffer, 0, 0, width, height, sx, sy, width, height);
   }
   else{
-    stroke(high*0.4,high*0.4,high,random(50,180));
-  }
-  let rad = pow(random(0,1.1),6)*40+15;
-  if(random(0,10)<1){
-    rad*=random(1,3);
-  }
-  let x = random(-rad,width+rad);
-  let y = random(-rad,height+rad);
-  ellipse(x,y,rad*2,rad*2);
-  if(random(0,3)<1){
-    fill(0,6);
-    noStroke();
-    rect(-1,-1,width+2,height+2);
-  }
-  pop();
+    push();
+    noFill();
+    strokeWeight(10);
+    let high = min(255,random(100,300));
+    if(random(0,2)<1){
+      stroke(high,high*0.7,0,random(50,150));
+    }
+    else{
+      stroke(high*0.4,high*0.4,high,random(50,180));
+    }
+    let rad = pow(random(0,1.1),6)*40+15;
+    if(random(0,10)<1){
+      rad*=random(1,3);
+    }
+    let x = random(-rad,width+rad);
+    let y = random(-rad,height+rad);
+    ellipse(x,y,rad*2,rad*2);
+    if(random(0,3)<1){
+      fill(0,6);
+      noStroke();
+      rect(-1,-1,width+2,height+2);
+    }
+    pop();
+  } 
 }
 
 function drawBackground() {
