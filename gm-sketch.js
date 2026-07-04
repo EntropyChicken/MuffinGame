@@ -178,9 +178,17 @@ async function checkGMPasswordHashed() {
   return new Promise((resolve) => {
     // 1. Create a dark fullscreen interface blocker container
     let overlay = createDiv();
+    
     overlay.style('position', 'fixed');
-    overlay.style('top', '0'); overlay.style('left', '0');
-    overlay.style('width', '100vw'); overlay.style('height', '100vh');
+    overlay.style('top', '50%'); overlay.style('left', '50%');
+    overlay.style('transform', 'translate(-50%, -50%)');
+    overlay.style('width', 'auto'); overlay.style('height', 'auto');
+    overlay.style('padding', '30px 40px');
+    overlay.style('background', '#121212');
+    overlay.style('border-radius', '12px');
+    overlay.style('box-shadow', '0 0 40px rgba(0,0,0,0.8)');
+    // remove the 100vw/100vh lines entirely
+
     overlay.style('background', '#121212'); // Deep dark mode matching style.css
     overlay.style('display', 'flex'); overlay.style('flex-direction', 'column');
     overlay.style('justify-content', 'center'); overlay.style('align-items', 'center');
@@ -484,7 +492,16 @@ function handleNameRequest(payload) {
 // ---- Rendering ----------------------------------------------------------------
 function draw() {
   if (!isAuthenticated) {
-    background(20); // Clean dark placeholder backdrop
+    noStroke();
+    for(let i = 0; i<3; i++){
+      fill(random(0,255),random(40,120));
+      let rad = 5+pow(random(0,1.1),6)*40;
+      ellipse(random(-rad,width+rad),random(-rad,height+rad),rad*2,rad*2);
+    }
+    if(random(0,3)<1){
+      fill(0,6);
+      rect(-1,-1,width+2,height+2);
+    }
     return; 
   }
 
