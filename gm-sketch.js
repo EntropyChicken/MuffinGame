@@ -427,14 +427,79 @@ function handleJoinMessage(payload) {
   });
 }
 
+function removePlayerFromGame(playerName) {
+  if (!playerName || gameStatus === "finished") return false;
+
+  const exactIndex = players.findIndex((p) => p === playerName);
+  if (exactIndex === -1) return false;
+
+  const playerLower = playerName.toLowerCase();
+
+  players.splice(exactIndex, 1);
+
+  delete pressesRemaining[playerName];
+  delete playerWealth[playerLower];
+  delete dedicationMax[playerName];
+
+  for (const remainingPlayer of players) {
+    delete dedicationMax[remainingPlayer][playerName];
+  }
+
+  dedicationLog = dedicationLog.filter(
+    (entry) => entry.from !== playerName && entry.to !== playerName
+  );
+
+  const connectedIndex = activelyConnectedPlayers.indexOf(playerName);
+  if (connectedIndex !== -1) {
+    activelyConnectedPlayers.splice(connectedIndex, 1);
+  }
+
+  if (currentRunner === playerName) {
+    currentRunner = null;
+  }
+  if (winner === playerName) {
+    winner = null;
+  }
+
+  if (channel) {
+    channel.send({
+      type: "broadcast",
+      event: "ROSTER_SYNC",
+      payload: {
+        currentPlayers: players,
+        pressesRemaining: pressesRemaining,
+        requestedNamesQueue: requestedNamesQueue
+      }
+    });
+
+    channel.send({
+      type: "broadcast",
+      event: EVENTS.DEDICATIONS_SYNC,
+      payload: { dedicationMax }
+    });
+  }
+
+  return true;
+}
+
 function registerNewPlayer() {
   const newName = addPlayerInput.value().trim();
   if (!newName) return;
 
-  const exists = players.some(p => p.toLowerCase() === newName.toLowerCase());
+  const exactExisting = players.some((p) => p === newName);
+  if (exactExisting && gameStatus !== "finished") {
+    const removed = removePlayerFromGame(newName);
+    if (removed) {
+      console.log(`Removed player: ${newName}`);
+    }
+    addPlayerInput.value("");
+    return;
+  }
+
+  const exists = players.some((p) => p.toLowerCase() === newName.toLowerCase());
   if (exists) {
     console.log(`Player "${newName}" is already in the game.`);
-    addPlayerInput.value(""); 
+    addPlayerInput.value("");
     return;
   }
 
