@@ -1039,7 +1039,7 @@ function drawTimerAndRunner() {
   textSize(60);
   if (gameStatus === "finished") {
     fill(255, 182, 0);
-    textBox(winner ? `WINNER: ${winner}` : "The wealthiest players lose all their wealth💀", width / 2, 142);
+    textBox(winner ? `WINNER: ${winner}` : (destroyFirstPlaceOnNoWinner ? "The wealthiest players lose all their wealth💀" : "(No winner🥀)"), width / 2, 142);
   } else if (currentRunner) {
     fill(getTimeColor());
     textBox(`Runner: ${currentRunner}`, width / 2, 142);
