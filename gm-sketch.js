@@ -822,7 +822,11 @@ function drawBackground() {
   } 
   else if (currentRunner === null) {
     textBoxOpacity = 0;
-    background(45 + 210 * buttonPressFlash);
+    let bright = 40;
+    if(getRemainingSeconds()<20){
+      bright = max(0,map(getRemainingSeconds(),5,20,0,40));
+    }
+    background(bright + (255-bright) * buttonPressFlash);
   } 
   else {
     textBoxOpacity = defaultTextBoxOpacity;
