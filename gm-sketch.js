@@ -497,31 +497,35 @@ function connectToSupabase() {
 function removePlayerFromGame(playerName) {
   if (!playerName || gameStatus === "finished") return false;
 
-  const exactIndex = players.findIndex((p) => p === playerName);
-  if (exactIndex === -1) return false;
+  const targetLower = playerName.toLowerCase();
+  const matchingPlayers = players.filter((p) => p.toLowerCase() === targetLower);
+  if (!matchingPlayers.length) return false;
 
-  const playerLower = playerName.toLowerCase();
+  const removedNames = matchingPlayers.map((p) => p);
 
-  players.splice(exactIndex, 1);
+  players = players.filter((p) => p.toLowerCase() !== targetLower);
 
-  delete pressesRemaining[playerName];
-  delete playerWealth[playerLower];
-  delete dedicationMax[playerName];
+  for (const removedName of removedNames) {
+    delete pressesRemaining[removedName];
+    delete playerWealth[removedName.toLowerCase()];
+    delete dedicationMax[removedName];
+    delete sessionLedger[removedName.toLowerCase()];
+  }
 
   for (const remainingPlayer of players) {
-    delete dedicationMax[remainingPlayer][playerName];
+    for (const removedName of removedNames) {
+      delete dedicationMax[remainingPlayer][removedName];
+    }
   }
 
   dedicationLog = dedicationLog.filter(
-    (entry) => entry.from !== playerName && entry.to !== playerName
+    (entry) => !((entry.from && entry.from.toLowerCase() === targetLower) || (entry.to && entry.to.toLowerCase() === targetLower))
   );
 
-  delete sessionLedger[playerLower];
-
-  if (currentRunner === playerName) {
+  if (currentRunner && currentRunner.toLowerCase() === targetLower) {
     currentRunner = null;
   }
-  if (winner === playerName) {
+  if (winner && winner.toLowerCase() === targetLower) {
     winner = null;
   }
 
@@ -556,8 +560,8 @@ function registerNewPlayer() {
   const newName = addPlayerInput.value().trim();
   if (!newName) return;
 
-  const exactExisting = players.some((p) => p === newName);
-  if (exactExisting && gameStatus !== "finished") {
+  const caseInsensitiveExisting = players.filter((p) => p.toLowerCase() === newName.toLowerCase());
+  if (caseInsensitiveExisting.length && gameStatus !== "finished") {
     const removed = removePlayerFromGame(newName);
     if (removed) {
       console.log(`Removed player: ${newName}`);
