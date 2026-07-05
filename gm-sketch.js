@@ -49,6 +49,7 @@ let waitingRoomImg;
 let spinnyWaitingRoom = false, buffer, bufferSize; // very laggy
 let defaultTextBoxOpacity = 190;
 let textBoxOpacity = defaultTextBoxOpacity;
+let rowTextSize = 33, rowSpacer = 44;
 
 // FIREWORKS I MADE FROM LIKE... IDK. COVID DAYS. 7TH GRADE? LOLLLLLL
 let ganime = 0;
@@ -1026,24 +1027,24 @@ function drawTimerAndRunner() {
 }
 
 function playerListStartY() {
-  return 220;
+  return 250;
 }
 
 function playerListEndY() {
-  return playerListStartY() + 22 + players.length * 35 + 35;
+  return playerListStartY() + 22 + players.length * rowSpacer + 35;
 }
 
 function drawPlayerList() {
   textFont("monospace");
   textAlign(LEFT, TOP);
-  textSize(32);
+  textSize(rowTextSize);
 
   const x = 30;
   let y = playerListStartY();
 
   fill(222);
   textBox("PLAYERS:", x, y);
-  y += 35;
+  y += rowSpacer;
   
   if (players.length === 0) {
     fill(130,150);
@@ -1071,7 +1072,7 @@ function drawPlayerList() {
     const statusTextString = "("+pressesRemaining[p]+" left)";
     textBox(statusTextString, statusX, y);
     
-    y += 35;
+    y += rowSpacer;
   }
 }
 
@@ -1087,7 +1088,7 @@ function countPayoutLines() {
 
 function payoutEndY() {
   if (gameStatus !== "finished") return playerListEndY();
-  return playerListEndY() + 22 + countPayoutLines() * 35 + 35;
+  return playerListEndY() + 35 + countPayoutLines() * rowSpacer + 35;
 }
 
 function drawPayout() {
@@ -1095,14 +1096,14 @@ function drawPayout() {
   
   textFont("monospace");
   textAlign(LEFT, TOP);
-  textSize(32);
+  textSize(rowTextSize);
 
   const x = 30;
   let y = playerListEndY();
 
   fill(255, 182, 0);
   textBox("PAYOUT:", x, y);
-  y += 35;
+  y += rowSpacer;
 
   let totalDedicated = Quantity.zero();
   for (const p of players) {
@@ -1110,7 +1111,7 @@ function drawPayout() {
     const amt = dedicationMax[winner][p] || Quantity.zero();
     if (amt.isGreaterThan(Quantity.zero())) {
       textBox(`${p} gets ${formatMuffins(amt)} muffins!`, x, y);
-      y += 35;
+      y += rowSpacer;
       totalDedicated = totalDedicated.add(amt);
     }
   }
@@ -1121,14 +1122,14 @@ function drawPayout() {
 function drawDedicationLog() {
   textFont("monospace");
   textAlign(LEFT, TOP);
-  textSize(32);
+  textSize(rowTextSize);
   
   const x = width / 2;
   let y = playerListStartY(); 
 
   fill(222);
   textBox("DEDICATIONS:", x, y);
-  y += 35;
+  y += rowSpacer;
 
   if (dedicationLog.length === 0) {
     fill(130,150);
@@ -1151,13 +1152,13 @@ function drawDedicationLog() {
   if (showEllipsis) {
     fill(120);
     textBox("...", x, y);
-    y += 35;
+    y += rowSpacer;
   }
 
   fill(222);
   for (const d of itemsToRender) {
     textBox(`${d.from} to ${d.to}: ${formatMuffins(d.amount)}`, x, y);
-    y += 35;
+    y += rowSpacer;
   }
 }
 
@@ -1272,7 +1273,7 @@ function drawLeaderboard(){
   
   // Set the text size BEFORE measuring textWidth, otherwise the measurements will be wrong!
   textAlign(LEFT, TOP);
-  textSize(32);
+  textSize(rowTextSize);
 
   // --- PASS 1: Calculate ranks and track max text widths ---
   let leaderboardRows = [];
@@ -1314,7 +1315,7 @@ function drawLeaderboard(){
     textBox(row.rankStr, rankX, y);
     textBox(row.name, nameX, y);
     textBox(row.wealthStr, wealthX, y);
-    y += 36;
+    y += rowSpacer;
   }
   
   pop();

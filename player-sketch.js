@@ -78,7 +78,7 @@ async function setup() {
   };
 
   // Broadcast out a check query to see if any real active windows are listening
-localTabChannel.postMessage({ type: EVENTS.PING_EXISTING, senderId: myTabId });
+  localTabChannel.postMessage({ type: EVENTS.PING_EXISTING, senderId: myTabId });
 
   // ========================================================
   // 2. OMNI-ROSTER GAME STATE BROADCAST LISTENER
@@ -170,6 +170,7 @@ function renderRegistrationUI(attemptedName) {
   
   const loginInput = createInput("");
   loginInput.attribute("placeholder", "Your Name");
+  loginInput.attribute("maxlength", "32"); // Prevents typing beyond 32 characters
   loginInput.elt.focus();
 
   const joinButton = createButton("Request to Join");
@@ -205,6 +206,12 @@ function renderRegistrationUI(attemptedName) {
   const requestPlayerName = () => {
     const enteredName = loginInput.value().trim();
     if (!enteredName) return;
+
+    // Hard local character limit check
+    if (enteredName.length > 32) {
+      instructionText.html(`<span style="color:#ff6666">Name cannot be longer than 32 characters!</span>`);
+      return;
+    }
 
     if (!channelReady) {
       instructionText.html("Still connecting to network, try again in a second...");
