@@ -25,6 +25,7 @@ let rawPlayerName = "Unknown";
 let pendingQueue = [];
 
 async function setup() {
+  window.duplicateSessionUiRendered = false;
   noCanvas();
   
   let loadingText = createP("Waiting for a Game Master...");
@@ -60,6 +61,7 @@ async function setup() {
     else if (event.data.type === EVENTS.I_AM_ALREADY_HERE) {
       if (!window.podiumUiRendered && !isDuplicateTab) {
         isDuplicateTab = true;
+        window.duplicateSessionUiRendered = true;
         
         // Block the duplicate window and render the Access Denied UI layout
         document.body.innerHTML = "";
@@ -102,6 +104,8 @@ localTabChannel.postMessage({ type: EVENTS.PING_EXISTING, senderId: myTabId });
 
       const found = activePlayers.find(p => p.toLowerCase() === rawPlayerName.toLowerCase());
 
+      if (window.duplicateSessionUiRendered) return;
+
       if (found) {
         playerName = found;
 
@@ -130,7 +134,7 @@ localTabChannel.postMessage({ type: EVENTS.PING_EXISTING, senderId: myTabId });
         }, 80);
       }
       else {
-        if (!window.registrationUiRendered && !window.podiumUiRendered) {
+        if (!window.duplicateSessionUiRendered && !window.registrationUiRendered && !window.podiumUiRendered) {
           renderRegistrationUI(rawPlayerName);
         }
       }
@@ -139,7 +143,7 @@ localTabChannel.postMessage({ type: EVENTS.PING_EXISTING, senderId: myTabId });
 }
 
 function renderRegistrationUI(attemptedName) {
-  if (window.registrationUiRendered) return;
+  if (window.duplicateSessionUiRendered || window.registrationUiRendered || window.podiumUiRendered) return;
   window.registrationUiRendered = true;
 
   let existingHeader = document.querySelector('h1');
@@ -342,7 +346,7 @@ function handleDedicate() {
 }
 
 function initializeActivePlayerPodium() {
-  if (window.podiumUiRendered) return;
+  if (window.duplicateSessionUiRendered || window.podiumUiRendered) return;
   window.podiumUiRendered = true;
 
   document.body.innerHTML = "";
