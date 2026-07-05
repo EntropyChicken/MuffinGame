@@ -18,6 +18,7 @@ let addPlayerInput;
 let requestedNamesQueue = []; // Holds strings of incoming requests
 let requestElements = [];     // Holds the DOM buttons we render
 let activelyConnectedPlayers = [];
+let activePlayerSessions = {};
 
 let gameStatus;       // "running" | "finished"
 let pressesRemaining; // { playerName: number }
@@ -323,35 +324,69 @@ function resetGameState() {
   }
 }
 
+function registerActivePlayerSession(playerName, sessionId) {
+  if (!playerName) return;
+
+  const key = playerName.toLowerCase();
+  activePlayerSessions[key] = { playerName, sessionId };
+
+  if (!activelyConnectedPlayers.some((name) => name.toLowerCase() === key)) {
+    activelyConnectedPlayers.push(playerName);
+  }
+}
+
+function clearActivePlayerSession(playerName, sessionId) {
+  if (!playerName) return;
+
+  const key = playerName.toLowerCase();
+  const existing = activePlayerSessions[key];
+  if (!existing) {
+    const index = activelyConnectedPlayers.findIndex((name) => name.toLowerCase() === key);
+    if (index !== -1) {
+      activelyConnectedPlayers.splice(index, 1);
+    }
+    return;
+  }
+
+  if (sessionId && existing.sessionId && existing.sessionId !== sessionId) {
+    return;
+  }
+
+  delete activePlayerSessions[key];
+  const index = activelyConnectedPlayers.findIndex((name) => name.toLowerCase() === key);
+  if (index !== -1) {
+    activelyConnectedPlayers.splice(index, 1);
+  }
+}
+
 function connectToSupabase() {
   channel = supabaseClient.channel(channelName);
   channel.on("broadcast", { event: EVENTS.JOIN }, (msg) => {
     if (msg.payload && msg.payload.player) {
-      const pName = msg.payload.player;
-      if (!activelyConnectedPlayers.some((name) => name.toLowerCase() === pName.toLowerCase())) {
-        activelyConnectedPlayers.push(pName);
-      }
+      registerActivePlayerSession(msg.payload.player, msg.payload.sessionId || null);
     }
   });
   channel.on("broadcast", { event: EVENTS.PLAYER_LEFT }, (msg) => {
     if (msg.payload && msg.payload.player) {
-      const pName = msg.payload.player;
-      const index = activelyConnectedPlayers.findIndex((name) => name.toLowerCase() === pName.toLowerCase());
-      if (index !== -1) {
-        activelyConnectedPlayers.splice(index, 1);
-      }
+      clearActivePlayerSession(msg.payload.player, msg.payload.sessionId || null);
     }
   });
   channel.on("broadcast", { event: EVENTS.VERIFY_SESSION }, (msg) => {
     if (msg.payload && msg.payload.player) {
       const pName = msg.payload.player;
-      const isBusy = activelyConnectedPlayers.some((name) => name.toLowerCase() === pName.toLowerCase());
+      const sessionId = msg.payload.sessionId || null;
+      const key = pName.toLowerCase();
+      const existing = activePlayerSessions[key];
+      const isBusy = Boolean(existing && existing.sessionId && existing.sessionId !== sessionId);
 
-      // Broadcast back whether this specific name is already busy
+      if (!existing || existing.sessionId !== sessionId) {
+        registerActivePlayerSession(pName, sessionId);
+      }
+
       channel.send({
         type: "broadcast",
         event: EVENTS.VERIFY_SESSION_RESULT,
-        payload: { player: pName, isAlreadyConnected: isBusy }
+        payload: { player: pName, isAlreadyConnected: isBusy, sessionId, accepted: !isBusy }
       });
     }
   });
@@ -465,10 +500,11 @@ function removePlayerFromGame(playerName) {
     (entry) => entry.from !== playerName && entry.to !== playerName
   );
 
-  const connectedIndex = activelyConnectedPlayers.indexOf(playerName);
+  const connectedIndex = activelyConnectedPlayers.findIndex((name) => name.toLowerCase() === playerName.toLowerCase());
   if (connectedIndex !== -1) {
     activelyConnectedPlayers.splice(connectedIndex, 1);
   }
+  delete activePlayerSessions[playerName.toLowerCase()];
 
   if (currentRunner === playerName) {
     currentRunner = null;

@@ -25,6 +25,9 @@ let rawPlayerName = "Unknown";
 let pendingQueue = [];
 let duplicateSessionCheckSent = false;
 let activeDuplicateChannel = null;
+let playerSessionId = null;
+let duplicateVerificationPending = true;
+let pendingRosterMessage = null;
 
 async function setup() {
   window.duplicateSessionUiRendered = false;
@@ -37,6 +40,7 @@ async function setup() {
 
   const params = new URLSearchParams(window.location.search);
   rawPlayerName = params.get("player") || "Unknown";
+  playerSessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   connectToSupabase();
 
@@ -79,50 +83,54 @@ localTabChannel.postMessage({ type: EVENTS.PING_EXISTING, senderId: myTabId });
   // ========================================================
   channel.on("broadcast", { event: EVENTS.ROSTER_SYNC }, (msg) => {
     if (msg.payload && msg.payload.currentPlayers) {
-      let msgEl = document.getElementById("gm-waiting-message");
-      if (msgEl) msgEl.remove();
-
-      const activePlayers = msg.payload.currentPlayers;
-      pendingQueue = msg.payload.requestedNamesQueue || [];
-
-      const found = activePlayers.find(p => p.toLowerCase() === rawPlayerName.toLowerCase());
-
-      if (window.duplicateSessionUiRendered) return;
-
-      if (found) {
-        playerName = found;
-
-        // CRITICAL FIX: Extract local variable metric syncing out of the timeout 
-        // so the player state never freezes or catches an uninitialized -Infinity hook!
-        if (msg.payload.pressesRemaining && msg.payload.pressesRemaining[playerName] !== undefined) {
-          pressesRemainingLocal = msg.payload.pressesRemaining[playerName];
-          if (pressesText) pressesText.html(pressesLabel());
-        }
-
-        // Defer UI layout mounting briefly to let the tab channel catch duplicate messages
-        setTimeout(() => {
-          if (isDuplicateTab) return; // Halt initialization completely if an attacker was flagged
-
-          if (!window.podiumUiRendered) {
-            initializeActivePlayerPodium();
-            // Refresh layout string content elements immediately upon structure generation
-            if (pressesText) pressesText.html(pressesLabel());
-            
-            channel.send({
-              type: "broadcast",
-              event: EVENTS.JOIN,
-              payload: { player: playerName }
-            });
-          }
-        }, 80);
+      if (duplicateVerificationPending) {
+        pendingRosterMessage = msg;
+        return;
       }
-      else {
-        if (!window.duplicateSessionUiRendered && !window.registrationUiRendered && !window.podiumUiRendered) {
-          renderRegistrationUI(rawPlayerName);
-        }
-      }
+      handleRosterMessage(msg);
     }
   });
+}
+
+function handleRosterMessage(msg) {
+  if (!msg || !msg.payload || !msg.payload.currentPlayers) return;
+
+  let msgEl = document.getElementById("gm-waiting-message");
+  if (msgEl) msgEl.remove();
+
+  const activePlayers = msg.payload.currentPlayers;
+  pendingQueue = msg.payload.requestedNamesQueue || [];
+
+  const found = activePlayers.find(p => p.toLowerCase() === rawPlayerName.toLowerCase());
+
+  if (window.duplicateSessionUiRendered) return;
+
+  if (found) {
+    playerName = found;
+
+    if (msg.payload.pressesRemaining && msg.payload.pressesRemaining[playerName] !== undefined) {
+      pressesRemainingLocal = msg.payload.pressesRemaining[playerName];
+      if (pressesText) pressesText.html(pressesLabel());
+    }
+
+    setTimeout(() => {
+      if (!window.podiumUiRendered) {
+        initializeActivePlayerPodium();
+        if (pressesText) pressesText.html(pressesLabel());
+
+        channel.send({
+          type: "broadcast",
+          event: EVENTS.JOIN,
+          payload: { player: playerName, sessionId: playerSessionId }
+        });
+      }
+    }, 80);
+  }
+  else {
+    if (!window.duplicateSessionUiRendered && !window.registrationUiRendered && !window.podiumUiRendered) {
+      renderRegistrationUI(rawPlayerName);
+    }
+  }
 }
 
 function showDuplicateSessionScreen(localTabChannel) {
@@ -280,8 +288,18 @@ function connectToSupabase() {
   channel.on("broadcast", { event: EVENTS.VERIFY_SESSION_RESULT }, (msg) => {
     if (!msg.payload || !msg.payload.player || window.duplicateSessionUiRendered) return;
     if (msg.payload.player.toLowerCase() !== rawPlayerName.toLowerCase()) return;
+
     if (msg.payload.isAlreadyConnected) {
+      duplicateVerificationPending = false;
       showDuplicateSessionScreen(activeDuplicateChannel);
+      return;
+    }
+
+    duplicateVerificationPending = false;
+    if (pendingRosterMessage) {
+      const pending = pendingRosterMessage;
+      pendingRosterMessage = null;
+      handleRosterMessage(pending);
     }
   });
 
@@ -321,7 +339,7 @@ function connectToSupabase() {
           channel.send({
             type: "broadcast",
             event: EVENTS.VERIFY_SESSION,
-            payload: { player: rawPlayerName }
+            payload: { player: rawPlayerName, sessionId: playerSessionId }
           });
         }
       }, 500);
@@ -382,7 +400,7 @@ window.addEventListener("beforeunload", () => {
     channel.send({
       type: "broadcast",
       event: EVENTS.PLAYER_LEFT,
-      payload: { player: rawPlayerName }
+      payload: { player: rawPlayerName, sessionId: playerSessionId }
     });
   } catch (err) {}
 });
