@@ -89,7 +89,7 @@ class FireworkRocket {
         for (let i = 0; i < 30; i++) {
           let nangle = random(0, 360);
           let myNextColors = [nextColors[0]+random(-50,50),nextColors[1]+random(-50,50),nextColors[2]+random(-50,50)];
-          p.push(new FireworkParticle(this.x, this.y, random(0, 3.5) * cos(nangle), random(0, 3.5) * sin(nangle) - 3, myNextColors));
+          p.push(new FireworkParticle(this.x, this.y, random(0, 3) * cos(nangle), random(0, 3) * sin(nangle) - 3, myNextColors));
         }
       } 
       else if (this.type === 2) {
@@ -240,7 +240,7 @@ async function checkGMPasswordHashed() {
     let settingsRow = createDiv().parent(overlay);
     settingsRow.style('display', 'flex'); settingsRow.style('gap', '10px');
 
-    let muffinInput = createInput("6").parent(settingsRow);
+    let muffinInput = createInput(maxMuffins.toDisplayString()).parent(settingsRow);
     muffinInput.attribute("placeholder", "Max Muffins");
     muffinInput.style('padding', '8px'); muffinInput.style('font-size', '16px'); muffinInput.style('width', '120px');
     muffinInput.style('text-align', 'center'); muffinInput.style('background', '#222'); muffinInput.style('color', '#fff'); muffinInput.style('border', '1px solid #555'); muffinInput.style('border-radius', '4px');
@@ -276,7 +276,7 @@ async function checkGMPasswordHashed() {
       
       if (await sha256HashHex(entered) === gameMasterPasswordHash) {
         const rawMaxMuffins = muffinInput.value().trim();
-        maxMuffins = Quantity.fromString(rawMaxMuffins || "6");
+        maxMuffins = Quantity.fromString(rawMaxMuffins || maxMuffins.toDisplayString());
         runDurationSeconds = parseFloat(timerInput.value()) || 60;
         maxPresses = parseInt(pressesInput.value()) || 5;
         
@@ -922,17 +922,20 @@ function applyRoundPayout() {
 		playerWealth[winner.toLowerCase()] = (playerWealth[winner.toLowerCase()] || Quantity.zero()).add(maxMuffins.subtract(totalDedicated));
 	}
 	else {
-
-		let total = Quantity.fromNumber(6);
-
+    // everyone tied for first place gets annihilated (back to zero wealth over all games)
+		let richestWealth = Quantity.zero();
 		for (const p of players) {
-			total = total.add(playerWealth[p.toLowerCase()] || Quantity.zero());
+			const wealth = asQuantity(playerWealth[p.toLowerCase()] || Quantity.zero());
+			if (wealth.isGreaterThan(richestWealth)) {
+				richestWealth = wealth;
+			}
 		}
 
-		const each = (players.length === 0 ? Quantity.zero() : total.divideByInt(players.length));
-
 		for (const p of players) {
-			playerWealth[p.toLowerCase()] = each;
+			const wealth = asQuantity(playerWealth[p.toLowerCase()] || Quantity.zero());
+			if (wealth.isEqualTo(richestWealth)) {
+				playerWealth[p.toLowerCase()] = Quantity.zero();
+			}
 		}
 	}
 }
@@ -1008,7 +1011,7 @@ function drawTimerAndRunner() {
   textSize(60);
   if (gameStatus === "finished") {
     fill(255, 182, 0);
-    textBox(winner ? `WINNER: ${winner}` : "WINNER: the concept of wealth redistribution", width / 2, 142);
+    textBox(winner ? `WINNER: ${winner}` : "💀the wealthiest players lose all their wealth💀", width / 2, 142);
   } else if (currentRunner) {
     fill(getTimeColor());
     textBox(`Runner: ${currentRunner}`, width / 2, 142);
@@ -1102,13 +1105,13 @@ function drawPayout() {
     if (p === winner) continue;
     const amt = dedicationMax[winner][p] || Quantity.zero();
     if (amt.isGreaterThan(Quantity.zero())) {
-      textBox(`${p} gets ${formatMuffins(amt)} muffins`, x, y);
+      textBox(`${p} gets ${formatMuffins(amt)} muffins!`, x, y);
       y += 35;
       totalDedicated = totalDedicated.add(amt);
     }
   }
   const winnerKeeps = maxMuffins.subtract(totalDedicated);
-  textBox(`${winner} gets ${formatMuffins(winnerKeeps)} muffins and is the WINNER`, x, y);
+  textBox(`${winner} gets ${formatMuffins(winnerKeeps)} muffins!`, x, y); // muffins! 🏆
 }
 
 function drawDedicationLog() {
