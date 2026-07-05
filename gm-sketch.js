@@ -17,8 +17,12 @@ let isAuthenticated = false;
 let addPlayerInput;
 let requestedNamesQueue = []; // Holds strings of incoming requests
 let requestElements = [];     // Holds the DOM buttons we render
-let activelyConnectedPlayers = [];
-let activePlayerSessions = {};
+
+// Session ledger: sole authority on who currently "owns" a player name.
+// Keyed by lowercased player name -> { playerName, sessionId, claimedAt, lastSeen }
+// claimedAt/lastSeen are always stamped with the GM's own Date.now(), never a
+// client-supplied timestamp.
+let sessionLedger = {};
 
 let gameStatus;       // "running" | "finished"
 let pressesRemaining; // { playerName: number }
@@ -324,72 +328,125 @@ function resetGameState() {
   }
 }
 
-function registerActivePlayerSession(playerName, sessionId) {
-  if (!playerName) return;
+// Resolves a SESSION_CLAIM request against the ledger.
+//
+// - No existing record, or the same device reclaiming its own name
+//   (reload, or coming back later - same localStorage id either way)
+//   -> always accepted, no matter how much time has passed.
+// - A different device claiming a name that's currently held
+//   -> rejected UNLESS the current holder has gone quiet for longer
+//      than SESSION_STALE_TIMEOUT_MS, in which case the new device
+//      takes over and the old one is told it's been revoked.
+function resolveSessionClaim(rawPlayerName, sessionId) {
+  if (!rawPlayerName || !sessionId) return { accepted: false };
 
-  const key = playerName.toLowerCase();
-  activePlayerSessions[key] = { playerName, sessionId };
+  const key = rawPlayerName.toLowerCase();
+  const now = Date.now();
+  const existing = sessionLedger[key];
 
-  if (!activelyConnectedPlayers.some((name) => name.toLowerCase() === key)) {
-    activelyConnectedPlayers.push(playerName);
+  if (!existing || existing.sessionId === sessionId) {
+    sessionLedger[key] = {
+      playerName: rawPlayerName,
+      sessionId,
+      claimedAt: existing ? existing.claimedAt : now,
+      lastSeen: now
+    };
+    return { accepted: true };
   }
+
+  const isStale = (now - existing.lastSeen) > SESSION_STALE_TIMEOUT_MS;
+  if (isStale) {
+    const previousSessionId = existing.sessionId;
+    sessionLedger[key] = { playerName: rawPlayerName, sessionId, claimedAt: now, lastSeen: now };
+    return { accepted: true, tookOverFrom: previousSessionId };
+  }
+
+  return { accepted: false };
 }
 
-function clearActivePlayerSession(playerName, sessionId) {
-  if (!playerName) return;
+// A heartbeat only updates lastSeen if the sender still matches the
+// ledger's current owner. If it doesn't (because the slot was taken
+// over while this device was out of contact), the sender is told to
+// stand down so it can show the duplicate-session screen instead of
+// silently pressing dead buttons.
+function handleSessionHeartbeat(rawPlayerName, sessionId) {
+  if (!rawPlayerName || !sessionId) return { stillOwner: false };
 
-  const key = playerName.toLowerCase();
-  const existing = activePlayerSessions[key];
-  if (!existing) {
-    const index = activelyConnectedPlayers.findIndex((name) => name.toLowerCase() === key);
-    if (index !== -1) {
-      activelyConnectedPlayers.splice(index, 1);
-    }
-    return;
+  const key = rawPlayerName.toLowerCase();
+  const existing = sessionLedger[key];
+
+  if (existing && existing.sessionId === sessionId) {
+    existing.lastSeen = Date.now();
+    return { stillOwner: true };
   }
 
-  if (sessionId && existing.sessionId && existing.sessionId !== sessionId) {
-    return;
-  }
+  return { stillOwner: false };
+}
 
-  delete activePlayerSessions[key];
-  const index = activelyConnectedPlayers.findIndex((name) => name.toLowerCase() === key);
-  if (index !== -1) {
-    activelyConnectedPlayers.splice(index, 1);
+// Best-effort courtesy release on a clean tab close. Only clears the
+// ledger if the releasing device is still the current owner, so a
+// slower "goodbye" from an already-superseded session can't stomp on
+// whoever has already taken the name over.
+function releaseSession(rawPlayerName, sessionId) {
+  if (!rawPlayerName || !sessionId) return;
+
+  const key = rawPlayerName.toLowerCase();
+  const existing = sessionLedger[key];
+  if (existing && existing.sessionId === sessionId) {
+    delete sessionLedger[key];
   }
 }
 
 function connectToSupabase() {
   channel = supabaseClient.channel(channelName);
-  channel.on("broadcast", { event: EVENTS.JOIN }, (msg) => {
-    if (msg.payload && msg.payload.player) {
-      registerActivePlayerSession(msg.payload.player, msg.payload.sessionId || null);
-    }
-  });
-  channel.on("broadcast", { event: EVENTS.PLAYER_LEFT }, (msg) => {
-    if (msg.payload && msg.payload.player) {
-      clearActivePlayerSession(msg.payload.player, msg.payload.sessionId || null);
-    }
-  });
-  channel.on("broadcast", { event: EVENTS.VERIFY_SESSION }, (msg) => {
-    if (msg.payload && msg.payload.player) {
-      const pName = msg.payload.player;
-      const sessionId = msg.payload.sessionId || null;
-      const key = pName.toLowerCase();
-      const existing = activePlayerSessions[key];
-      const isBusy = Boolean(existing && existing.sessionId && existing.sessionId !== sessionId);
 
-      if (!existing || existing.sessionId !== sessionId) {
-        registerActivePlayerSession(pName, sessionId);
-      }
+  channel.on("broadcast", { event: EVENTS.SESSION_CLAIM }, (msg) => {
+    const payload = msg.payload || {};
+    const rawPlayerName = payload.player;
+    const sessionId = payload.sessionId;
+    if (!rawPlayerName || !sessionId) return;
 
+    const result = resolveSessionClaim(rawPlayerName, sessionId);
+
+    if (result.accepted && result.tookOverFrom) {
+      // The previous holder went quiet too long - tell it to stand down.
       channel.send({
         type: "broadcast",
-        event: EVENTS.VERIFY_SESSION_RESULT,
-        payload: { player: pName, isAlreadyConnected: isBusy, sessionId, accepted: !isBusy }
+        event: EVENTS.SESSION_REVOKED,
+        payload: { player: rawPlayerName, sessionId: result.tookOverFrom }
+      });
+    }
+
+    channel.send({
+      type: "broadcast",
+      event: EVENTS.SESSION_CLAIM_RESULT,
+      payload: { player: rawPlayerName, sessionId, accepted: result.accepted }
+    });
+  });
+
+  channel.on("broadcast", { event: EVENTS.SESSION_HEARTBEAT }, (msg) => {
+    const payload = msg.payload || {};
+    const rawPlayerName = payload.player;
+    const sessionId = payload.sessionId;
+    if (!rawPlayerName || !sessionId) return;
+
+    const result = handleSessionHeartbeat(rawPlayerName, sessionId);
+    if (!result.stillOwner) {
+      channel.send({
+        type: "broadcast",
+        event: EVENTS.SESSION_REVOKED,
+        payload: { player: rawPlayerName, sessionId }
       });
     }
   });
+
+  channel.on("broadcast", { event: EVENTS.SESSION_RELEASE }, (msg) => {
+    const payload = msg.payload || {};
+    if (payload.player && payload.sessionId) {
+      releaseSession(payload.player, payload.sessionId);
+    }
+  });
+
   channel.on("broadcast", { event: EVENTS.PRESS }, (msg) => {
     handlePressMessage(msg.payload);
   });
@@ -437,47 +494,6 @@ function connectToSupabase() {
   });
 }
 
-function handleJoinMessage(payload) {
-  const rawPlayer = payload && payload.player;
-  const player = players.find(
-    p => p.toLowerCase() === (rawPlayer || "").toLowerCase()
-  );
-
-  if (!player) {
-    console.log("Unknown player:", rawPlayer);
-    return;
-  }
-  const playerExists = players.some((p) => p.toLowerCase() === (player || "").toLowerCase());
-
-  if (!playerExists) {
-    console.log(`Unrecognized player "${player}" tried to join.`);
-    return;
-  }
-  channel.send({
-    type: "broadcast",
-    event: EVENTS.STATE_SYNC,
-    payload: { player: player, pressesRemaining: pressesRemaining[player] }
-  });
-  
-  channel.send({
-    type: "broadcast",
-    event: EVENTS.ROSTER_SYNC,
-    payload: { currentPlayers: players, pressesRemaining: pressesRemaining }
-  });
-
-  channel.send({
-    type: "broadcast",
-    event: EVENTS.SETTINGS_SYNC,
-    payload: { maxPresses, maxMuffins, runDurationSeconds }
-  });
-  
-  channel.send({
-    type: "broadcast",
-    event: EVENTS.DEDICATIONS_SYNC,
-    payload: { dedicationMax }
-  });
-}
-
 function removePlayerFromGame(playerName) {
   if (!playerName || gameStatus === "finished") return false;
 
@@ -500,11 +516,7 @@ function removePlayerFromGame(playerName) {
     (entry) => entry.from !== playerName && entry.to !== playerName
   );
 
-  const connectedIndex = activelyConnectedPlayers.findIndex((name) => name.toLowerCase() === playerName.toLowerCase());
-  if (connectedIndex !== -1) {
-    activelyConnectedPlayers.splice(connectedIndex, 1);
-  }
-  delete activePlayerSessions[playerName.toLowerCase()];
+  delete sessionLedger[playerLower];
 
   if (currentRunner === playerName) {
     currentRunner = null;

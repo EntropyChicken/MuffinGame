@@ -30,6 +30,22 @@ let maxPresses = 5;
 
 
 // ==========================================================
+// SESSION / DUPLICATE-LOGIN CONFIG
+//
+// Every browser gets one persistent "device session id" (see
+// getOrCreateDeviceSessionId below) that survives reloads AND
+// fully closing/reopening the tab. The Game Master is the sole
+// authority on who currently owns a player name: it stamps a
+// claim time using its own clock, and only lets a *different*
+// device take over a name once the current holder has gone
+// quiet for longer than SESSION_STALE_TIMEOUT_MS.
+// ==========================================================
+
+const SESSION_HEARTBEAT_INTERVAL_MS = 5000;
+const SESSION_STALE_TIMEOUT_MS = 18000; // ~3-4 missed heartbeats
+
+
+// ==========================================================
 // SHARED GAME STATE
 // ==========================================================
 
@@ -43,7 +59,6 @@ let players = [];
 const EVENTS = {
 	PRESS: "press",
 	DEDICATE: "dedicate",
-	JOIN: "join",
 
 	STATE_SYNC: "state_sync",
 	SETTINGS_SYNC: "settings_sync",
@@ -58,12 +73,19 @@ const EVENTS = {
 
 	GAME_RESET: "game_reset",
 	ROSTER_SYNC: "ROSTER_SYNC",
-	VERIFY_SESSION: "VERIFY_SESSION",
-	VERIFY_SESSION_RESULT: "VERIFY_SESSION_RESULT",
+
+	// Same-browser, same-tab-group duplicate guard (instant, no network)
 	PING_EXISTING: "PING_EXISTING",
 	I_AM_ALREADY_HERE: "I_AM_ALREADY_HERE",
-	PLAYER_REMOVED: "PLAYER_REMOVED",
-	PLAYER_LEFT: "PLAYER_LEFT"
+
+	// Cross-device session ownership, arbitrated by the Game Master
+	SESSION_CLAIM: "SESSION_CLAIM",
+	SESSION_CLAIM_RESULT: "SESSION_CLAIM_RESULT",
+	SESSION_HEARTBEAT: "SESSION_HEARTBEAT",
+	SESSION_RELEASE: "SESSION_RELEASE",
+	SESSION_REVOKED: "SESSION_REVOKED",
+
+	PLAYER_REMOVED: "PLAYER_REMOVED"
 };
 
 
@@ -128,6 +150,39 @@ function formatMuffins(amount) {
 	}
 
 	return parseFloat(amount.toFixed(12)).toString();
+}
+
+
+// ==========================================================
+// PERSISTENT DEVICE SESSION ID
+//
+// Stored in localStorage (NOT sessionStorage) so the same
+// browser keeps the same identity across a plain reload AND
+// across fully closing/reopening the tab or app. This is what
+// lets a player leave and come back without ever looking like
+// a duplicate to the Game Master.
+// ==========================================================
+
+const DEVICE_SESSION_STORAGE_KEY = "muffinGameDeviceSessionId";
+let _cachedDeviceSessionId = null;
+
+function getOrCreateDeviceSessionId() {
+	if (_cachedDeviceSessionId) return _cachedDeviceSessionId;
+
+	try {
+		let id = localStorage.getItem(DEVICE_SESSION_STORAGE_KEY);
+		if (!id) {
+			id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+			localStorage.setItem(DEVICE_SESSION_STORAGE_KEY, id);
+		}
+		_cachedDeviceSessionId = id;
+	} catch (err) {
+		// localStorage unavailable (e.g. some private-browsing modes).
+		// Fall back to an id that's at least stable for the life of this page.
+		_cachedDeviceSessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+	}
+
+	return _cachedDeviceSessionId;
 }
 
 

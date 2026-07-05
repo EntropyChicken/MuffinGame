@@ -23,11 +23,11 @@ let mainLayout, leftCol, centerCol, rightCol;
 
 let rawPlayerName = "Unknown";
 let pendingQueue = [];
-let duplicateSessionCheckSent = false;
 let activeDuplicateChannel = null;
-let playerSessionId = null;
-let duplicateVerificationPending = true;
+let deviceSessionId = null;
+let sessionClaimPending = true;
 let pendingRosterMessage = null;
+let heartbeatIntervalId = null;
 
 async function setup() {
   window.duplicateSessionUiRendered = false;
@@ -40,7 +40,7 @@ async function setup() {
 
   const params = new URLSearchParams(window.location.search);
   rawPlayerName = params.get("player") || "Unknown";
-  playerSessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  deviceSessionId = getOrCreateDeviceSessionId();
 
   connectToSupabase();
 
@@ -83,7 +83,7 @@ localTabChannel.postMessage({ type: EVENTS.PING_EXISTING, senderId: myTabId });
   // ========================================================
   channel.on("broadcast", { event: EVENTS.ROSTER_SYNC }, (msg) => {
     if (msg.payload && msg.payload.currentPlayers) {
-      if (duplicateVerificationPending) {
+      if (sessionClaimPending) {
         pendingRosterMessage = msg;
         return;
       }
@@ -113,18 +113,10 @@ function handleRosterMessage(msg) {
       if (pressesText) pressesText.html(pressesLabel());
     }
 
-    setTimeout(() => {
-      if (!window.podiumUiRendered) {
-        initializeActivePlayerPodium();
-        if (pressesText) pressesText.html(pressesLabel());
-
-        channel.send({
-          type: "broadcast",
-          event: EVENTS.JOIN,
-          payload: { player: playerName, sessionId: playerSessionId }
-        });
-      }
-    }, 80);
+    if (!window.podiumUiRendered) {
+      initializeActivePlayerPodium();
+      if (pressesText) pressesText.html(pressesLabel());
+    }
   }
   else {
     if (!window.duplicateSessionUiRendered && !window.registrationUiRendered && !window.podiumUiRendered) {
@@ -285,22 +277,35 @@ function connectToSupabase() {
     }
   });
 
-  channel.on("broadcast", { event: EVENTS.VERIFY_SESSION_RESULT }, (msg) => {
+  channel.on("broadcast", { event: EVENTS.SESSION_CLAIM_RESULT }, (msg) => {
     if (!msg.payload || !msg.payload.player || window.duplicateSessionUiRendered) return;
     if (msg.payload.player.toLowerCase() !== rawPlayerName.toLowerCase()) return;
+    if (msg.payload.sessionId !== deviceSessionId) return;
 
-    if (msg.payload.isAlreadyConnected) {
-      duplicateVerificationPending = false;
+    sessionClaimPending = false;
+
+    if (!msg.payload.accepted) {
       showDuplicateSessionScreen(activeDuplicateChannel);
       return;
     }
 
-    duplicateVerificationPending = false;
+    startSessionHeartbeat();
+
     if (pendingRosterMessage) {
       const pending = pendingRosterMessage;
       pendingRosterMessage = null;
       handleRosterMessage(pending);
     }
+  });
+
+  channel.on("broadcast", { event: EVENTS.SESSION_REVOKED }, (msg) => {
+    if (!msg.payload || !msg.payload.player || window.duplicateSessionUiRendered) return;
+    if (msg.payload.player.toLowerCase() !== rawPlayerName.toLowerCase()) return;
+    if (msg.payload.sessionId !== deviceSessionId) return;
+
+    // Another device took over this name after we went quiet for too long.
+    stopSessionHeartbeat();
+    showDuplicateSessionScreen(activeDuplicateChannel);
   });
 
   channel.on("broadcast", { event: EVENTS.SETTINGS_SYNC }, (msg) => {
@@ -321,10 +326,7 @@ function connectToSupabase() {
       renderDedicationsLists(msg.payload.dedicationMax);
     }
   });
-  channel.on("presence", { event: "sync" }, () => {
-    checkForDuplicateName();
-  });
-  channel.subscribe(async (status) => {
+  channel.subscribe((status) => {
     channelReady = status === "SUBSCRIBED";
     if (status === "SUBSCRIBED") {
       setTimeout(() => {
@@ -334,21 +336,38 @@ function connectToSupabase() {
           payload: {}
         });
 
-        if (!duplicateSessionCheckSent && rawPlayerName && rawPlayerName !== "Unknown") {
-          duplicateSessionCheckSent = true;
+        if (rawPlayerName && rawPlayerName !== "Unknown") {
           channel.send({
             type: "broadcast",
-            event: EVENTS.VERIFY_SESSION,
-            payload: { player: rawPlayerName, sessionId: playerSessionId }
+            event: EVENTS.SESSION_CLAIM,
+            payload: { player: rawPlayerName, sessionId: deviceSessionId }
           });
+        } else {
+          // No name in the URL at all - nothing to claim or verify.
+          sessionClaimPending = false;
         }
       }, 500);
-      
-      if (playerName !== "Unknown") {
-        await channel.track({ player: playerName });
-      }
     }
   });
+}
+
+function startSessionHeartbeat() {
+  if (heartbeatIntervalId) return;
+  heartbeatIntervalId = setInterval(() => {
+    if (!channelReady || !rawPlayerName || rawPlayerName === "Unknown") return;
+    channel.send({
+      type: "broadcast",
+      event: EVENTS.SESSION_HEARTBEAT,
+      payload: { player: rawPlayerName, sessionId: deviceSessionId }
+    });
+  }, SESSION_HEARTBEAT_INTERVAL_MS);
+}
+
+function stopSessionHeartbeat() {
+  if (heartbeatIntervalId) {
+    clearInterval(heartbeatIntervalId);
+    heartbeatIntervalId = null;
+  }
 }
 
 function handleDedicate() {
@@ -395,12 +414,17 @@ function handleDedicate() {
 }
 
 window.addEventListener("beforeunload", () => {
-  if (!channel || !rawPlayerName || rawPlayerName === "Unknown") return;
+  if (!channel || !rawPlayerName || rawPlayerName === "Unknown" || !deviceSessionId) return;
   try {
+    // Best-effort courtesy release on a clean close/reload, so a legitimate
+    // reconnect doesn't even have to wait for the heartbeat timeout. Not
+    // load-bearing: if this never arrives (mobile browsers often skip it),
+    // the same deviceSessionId reclaiming the name still works instantly,
+    // and an unclean disconnect still frees up after the stale timeout.
     channel.send({
       type: "broadcast",
-      event: EVENTS.PLAYER_LEFT,
-      payload: { player: rawPlayerName, sessionId: playerSessionId }
+      event: EVENTS.SESSION_RELEASE,
+      payload: { player: rawPlayerName, sessionId: deviceSessionId }
     });
   } catch (err) {}
 });
@@ -515,12 +539,6 @@ function initializeActivePlayerPodium() {
   (none)
   </div>
   `);
-  
-  channel.send({
-    type: "broadcast",
-    event: EVENTS.JOIN,
-    payload: { player: playerName }
-  });
 }
 
 function renderDedicationsLists(dedicationMax) {
@@ -579,19 +597,6 @@ function autoGrowInput(inputElem) {
   measureSpan.html(content.replace(/\s/g, "&nbsp;") || "&nbsp;");
   const width = measureSpan.elt.offsetWidth + 24; 
   el.style.width = width + "px";
-}
-
-function checkForDuplicateName() {
-  const state = channel.presenceState();
-  let count = 0;
-  for (const key in state) {
-    for (const entry of state[key]) {
-      if (entry.player === playerName) count++;
-    }
-  }
-  if (count > 1) {
-    statusText.html(`Warning! It seems like someone else is also connected to ${playerName}. Like, identity theft type beat, ya know?`);
-  }
 }
 
 function pressesLabel() {
