@@ -76,7 +76,7 @@ class FireworkRocket {
   }
   
   nature(id) {
-    if (this.yv > -0.7) {
+    if (this.yv > -1.2) {
       if (this.type === 1) {
         let nextColors;
         if (ganime < 120) {
@@ -86,15 +86,17 @@ class FireworkRocket {
         } else {
           nextColors = [random(0, 255), random(0, 255), 255];
         }
-        for (let i = 0; i < 25; i++) {
+        for (let i = 0; i < 30; i++) {
           let nangle = random(0, 360);
-          p.push(new FireworkParticle(this.x, this.y, random(-1, 2) * cos(nangle), random(-1, 2) * sin(nangle) - 3, nextColors));
+          let myNextColors = [nextColors[0]+random(-50,50),nextColors[1]+random(-50,50),nextColors[2]+random(-50,50)];
+          p.push(new FireworkParticle(this.x, this.y, random(0, 3.5) * cos(nangle), random(0, 3.5) * sin(nangle) - 3, myNextColors));
         }
       } 
       else if (this.type === 2) {
         let nextcolorsmag = 255 * floor(random(0, 2));
         for (let i = 225; i < 316; i += 5) {
-          p.push(new FireworkParticle(this.x, this.y, 1.5 * cos(i), 5 * sin(i) - 2, [255 - nextcolorsmag, nextcolorsmag, nextcolorsmag]));
+          p.push(new FireworkParticle(this.x, this.y, random(1.4,1.6) * cos(i), random(4.5,4.8) * sin(i) - 2, [255 - nextcolorsmag, nextcolorsmag, nextcolorsmag]));
+          p.push(new FireworkParticle(this.x, this.y, -random(1.4,1.6) * cos(i), -random(4.5,4.8) * sin(i) - 2, [nextcolorsmag, 255 - nextcolorsmag, 255 - nextcolorsmag]));
         }
       } 
       else if (this.type === 3) {
@@ -135,7 +137,7 @@ class FireworkParticle {
   }
   
   nature(id) {
-    if (this.yv > 6) {
+    if (this.yv > random(4,14)) {
       p.splice(id, 1);
     }
   }
