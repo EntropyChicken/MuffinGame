@@ -23,6 +23,8 @@ let mainLayout, leftCol, centerCol, rightCol;
 
 let rawPlayerName = "Unknown";
 let pendingQueue = [];
+let duplicateSessionCheckSent = false;
+let activeDuplicateChannel = null;
 
 async function setup() {
   window.duplicateSessionUiRendered = false;
@@ -44,6 +46,7 @@ async function setup() {
   const myTabId = Math.random().toString(36).substring(2, 9);
   const tabChannelName = `muffin_session_${rawPlayerName.toLowerCase()}`;
   const localTabChannel = new BroadcastChannel(tabChannelName);
+  activeDuplicateChannel = localTabChannel;
   let isDuplicateTab = false;
 
   localTabChannel.onmessage = (event) => {
@@ -63,27 +66,7 @@ async function setup() {
         isDuplicateTab = true;
         window.duplicateSessionUiRendered = true;
         
-        // Block the duplicate window and render the Access Denied UI layout
-        document.body.innerHTML = "";
-        let errorBox = createDiv();
-        errorBox.style("max-width", "500px");
-        errorBox.style("margin", "100px auto");
-        errorBox.style("text-align", "center");
-        errorBox.style("font-family", "monospace");
-        errorBox.style("padding", "20px");
-
-        createElement("h1", "Access Denied").parent(errorBox);
-        let alertText = createP(`<span style="color:#ff6666; font-weight:bold;">😭duplicate session🥀</span><br>"${rawPlayerName}" is already actively playing in another window or tab.`);
-        alertText.parent(errorBox);
-        alertText.style("margin-bottom", "30px");
-        alertText.style("line-height", "1.6");
-
-        let homeButton = createButton("Return to Sign-Up Screen").parent(errorBox);
-        homeButton.class("dedicate-btn");
-        homeButton.mousePressed(() => {
-          localTabChannel.close();
-          window.location.href = window.location.origin + window.location.pathname;
-        });
+        showDuplicateSessionScreen(localTabChannel);
       }
     }
   };
@@ -139,6 +122,37 @@ localTabChannel.postMessage({ type: EVENTS.PING_EXISTING, senderId: myTabId });
         }
       }
     }
+  });
+}
+
+function showDuplicateSessionScreen(localTabChannel) {
+  if (window.duplicateSessionUiRendered) return;
+  window.duplicateSessionUiRendered = true;
+
+  if (activeDuplicateChannel && activeDuplicateChannel !== localTabChannel) {
+    try { activeDuplicateChannel.close(); } catch (err) {}
+  }
+  activeDuplicateChannel = localTabChannel;
+
+  document.body.innerHTML = "";
+  let errorBox = createDiv();
+  errorBox.style("max-width", "500px");
+  errorBox.style("margin", "100px auto");
+  errorBox.style("text-align", "center");
+  errorBox.style("font-family", "monospace");
+  errorBox.style("padding", "20px");
+
+  createElement("h1", "Access Denied").parent(errorBox);
+  let alertText = createP(`<span style="color:#ff6666; font-weight:bold;">😭duplicate session🥀</span><br>"${rawPlayerName}" is already actively playing in another window or tab.`);
+  alertText.parent(errorBox);
+  alertText.style("margin-bottom", "30px");
+  alertText.style("line-height", "1.6");
+
+  let homeButton = createButton("Return to Sign-Up Screen").parent(errorBox);
+  homeButton.class("dedicate-btn");
+  homeButton.mousePressed(() => {
+    try { localTabChannel.close(); } catch (err) {}
+    window.location.href = window.location.origin + window.location.pathname;
   });
 }
 
@@ -263,6 +277,14 @@ function connectToSupabase() {
     }
   });
 
+  channel.on("broadcast", { event: EVENTS.VERIFY_SESSION_RESULT }, (msg) => {
+    if (!msg.payload || !msg.payload.player || window.duplicateSessionUiRendered) return;
+    if (msg.payload.player.toLowerCase() !== rawPlayerName.toLowerCase()) return;
+    if (msg.payload.isAlreadyConnected) {
+      showDuplicateSessionScreen(activeDuplicateChannel);
+    }
+  });
+
   channel.on("broadcast", { event: EVENTS.SETTINGS_SYNC }, (msg) => {
     if (msg.payload) {
       maxMuffins = msg.payload.maxMuffins;
@@ -293,6 +315,15 @@ function connectToSupabase() {
           event: EVENTS.REQUEST_ROSTER,
           payload: {}
         });
+
+        if (!duplicateSessionCheckSent && rawPlayerName && rawPlayerName !== "Unknown") {
+          duplicateSessionCheckSent = true;
+          channel.send({
+            type: "broadcast",
+            event: EVENTS.VERIFY_SESSION,
+            payload: { player: rawPlayerName }
+          });
+        }
       }, 500);
       
       if (playerName !== "Unknown") {
@@ -344,6 +375,17 @@ function handleDedicate() {
 
   statusText.html(`Sent dedication of ${formatMuffins(amount)} muffins to ${name}.`);
 }
+
+window.addEventListener("beforeunload", () => {
+  if (!channel || !rawPlayerName || rawPlayerName === "Unknown") return;
+  try {
+    channel.send({
+      type: "broadcast",
+      event: EVENTS.PLAYER_LEFT,
+      payload: { player: rawPlayerName }
+    });
+  } catch (err) {}
+});
 
 function initializeActivePlayerPodium() {
   if (window.duplicateSessionUiRendered || window.podiumUiRendered) return;

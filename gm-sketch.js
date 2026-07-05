@@ -328,15 +328,24 @@ function connectToSupabase() {
   channel.on("broadcast", { event: EVENTS.JOIN }, (msg) => {
     if (msg.payload && msg.payload.player) {
       const pName = msg.payload.player;
-      if (!activelyConnectedPlayers.includes(pName)) {
+      if (!activelyConnectedPlayers.some((name) => name.toLowerCase() === pName.toLowerCase())) {
         activelyConnectedPlayers.push(pName);
+      }
+    }
+  });
+  channel.on("broadcast", { event: EVENTS.PLAYER_LEFT }, (msg) => {
+    if (msg.payload && msg.payload.player) {
+      const pName = msg.payload.player;
+      const index = activelyConnectedPlayers.findIndex((name) => name.toLowerCase() === pName.toLowerCase());
+      if (index !== -1) {
+        activelyConnectedPlayers.splice(index, 1);
       }
     }
   });
   channel.on("broadcast", { event: EVENTS.VERIFY_SESSION }, (msg) => {
     if (msg.payload && msg.payload.player) {
       const pName = msg.payload.player;
-      const isBusy = activelyConnectedPlayers.includes(pName);
+      const isBusy = activelyConnectedPlayers.some((name) => name.toLowerCase() === pName.toLowerCase());
 
       // Broadcast back whether this specific name is already busy
       channel.send({
